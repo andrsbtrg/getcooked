@@ -1,0 +1,19 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "raylib/lib/libraylib.a",
+      "-Iraylib/include",
+      "-O0",
+      "-g3",
+      "-Wmissing-field-initializers",
+      "-o",
+      "game",
+      "src/entry.c"
+    ],
+    "directory": "/home/andres/projects/game",
+    "file": "/home/andres/projects/game/src/entry.c",
+    "output": "/home/andres/projects/game/game"
+  }
+]
