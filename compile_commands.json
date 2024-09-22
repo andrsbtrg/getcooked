@@ -1,13 +1,12 @@
 [
   {
     "arguments": [
-      "/usr/bin/g++",
+      "/usr/lib64/ccache/g++",
       "-c",
       "raylib/lib/libraylib.a",
       "-Iraylib/include",
       "-O0",
       "-g3",
-      "-Wmissing-field-initializers",
       "-o",
       "game",
       "src/entry.c"
