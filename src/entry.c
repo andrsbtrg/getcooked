@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #include <stdlib.h>
+#include <assert.h>
 
 typedef enum EntityArchetype {
     ARCH_NIL = 0,
@@ -20,71 +21,127 @@ typedef struct World {
     Entity entities[MAX_ENTITIES];
 } World;
 
+inline Vector2 v2(float x, float y) { return (Vector2){x, y}; }
+
 World *world;
-void init_entities(World *world);
+
+
+void init_entities();
 void update_player(Entity *player);
 void setup_window(void);
+void update_camera(Camera2D*, Entity*);
 
-#define PLAYER_HEIGHT 80
-#define PLAYER_WIDTH 60
+
+Entity* entity_create();
+
+#define PLAYER_HEIGHT 8
+#define PLAYER_WIDTH 6
+
+#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 800
 
 
 int main(void) {
     setup_window();
 
-    Image player = LoadImage("../assets/player.png");
-    if (player.data == NULL) {
+    Image rock_image = LoadImage("/home/andres/projects/game/assets/rock.png");
+    if (rock_image.data == NULL) {
         return 1;
     }
-    Texture2D texture = LoadTextureFromImage(player);
-    UnloadImage(player);
+    Texture2D rock_texture = LoadTextureFromImage(rock_image);
+    UnloadImage(rock_image);
+
+    Image tree_image = LoadImage("/home/andres/projects/game/assets/tree.png");
+    if (tree_image.data == NULL) {
+        return 1;
+    }
+    Texture2D tree_texture = LoadTextureFromImage(tree_image);
+    UnloadImage(tree_image);
+
+    Image player_image = LoadImage("/home/andres/projects/game/assets/player.png");
+    if (player_image.data == NULL) {
+        return 1;
+    }
+    Texture2D player_tx = LoadTextureFromImage(player_image);
+    UnloadImage(player_image);
 
     // Setup world
     world = (World *)malloc(sizeof(World));
 
-    init_entities(world);
+    init_entities();
+
+    Entity *player = &world->entities[0];
+
+    Camera2D camera = { 0 };
+    camera.target = (Vector2){ player->position.x + 20.0f, player->position.y + 20.0f };
+    camera.offset = (Vector2){ SCREEN_WIDTH/2.0f, SCREEN_HEIGHT/2.0f };
+    camera.rotation = 0.0f;
+    camera.zoom = 7.5f;
 
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
         // Handle Keys
-        Entity * player = &world->entities[0];
         update_player(player);
+        update_camera(&camera, player);
 
-        // Drawing
         BeginDrawing();
 
         ClearBackground(DARKGRAY);
-        DrawTextureV(texture, player->position, WHITE);
 
+        BeginMode2D(camera);
+            for (int i = 0; i< MAX_ENTITIES; i ++) {
+                Entity *found = &world->entities[i];
+                if (NULL == found) {
+                    continue;
+                }
+                if (!found->is_valid) {
+                    continue;
+                }
+                if (found->arch == ARCH_PLAYER) {
+                    DrawTextureEx(player_tx, found->position, 0.0, 1.0f, WHITE); 
+                }
+                else if (found -> arch == ARCH_TREE) {
+                    DrawTextureV(tree_texture, found->position, WHITE);
+                }
+                else if(found -> arch == ARCH_ROCK) {
+                    DrawTextureV(rock_texture, found->position, WHITE);
+                }
+            }
+
+        EndMode2D();
         DrawText(TextFormat("Player pos: [%i , %i]", (int)player->position.x, (int)player->position.y),
                  400, 25, 20, RED);
         EndDrawing();
     }
 
-    UnloadTexture(texture);
+    UnloadTexture(player_tx);
+    UnloadTexture(tree_texture);
+    UnloadTexture(rock_texture);
     CloseWindow();
 
     return 0;
 }
 
-void init_entities(World * world) {
+void init_entities() {
     // initial player position
-    Vector2 player_pos = { 0, 0 };
+    Entity* player = entity_create();
+    player->arch = ARCH_PLAYER;
+    player->position = v2(0,0);
 
-    Entity player = { 0 };
-    player.arch = ARCH_PLAYER;
-    player.position = player_pos;
-    player.is_valid = true;
+    Entity *rock = entity_create();
+    rock->arch = ARCH_ROCK;
+    rock->position = v2(10, -5);
 
-    world->entities[0] = player;
+    Entity *tree = entity_create();
+    tree->position = v2(1,10);
+    tree->arch = ARCH_TREE;
 
     return;
 }
 
+/// Move player
 void update_player(Entity *player) {
-    // move player
     Vector2 input_axis = Vector2 { 0.0, 0.0 };
-    // left
     if (IsKeyDown(KEY_A)) {
         input_axis.x = -1;
     }
@@ -100,16 +157,34 @@ void update_player(Entity *player) {
     input_axis = Vector2Normalize(input_axis);
 
     Vector2 initial_pos = (Vector2) { player->position.x, player->position.y};
-    Vector2 movement = Vector2Scale(input_axis, 10);
+    Vector2 movement = Vector2Scale(input_axis, 1.0f);
     player->position = Vector2Add(initial_pos, movement);
     return;
 }
 void setup_window() {
-    int screenWidth = 800;
-    int screenHeight = 600;
-    InitWindow(screenWidth, screenHeight, "Game");
+    InitWindow(SCREEN_WIDTH,SCREEN_HEIGHT, "Game");
 
     Vector2 scale = GetWindowScaleDPI();
-    SetWindowSize(screenWidth / scale.x, screenHeight / scale.y);
+    SetWindowSize(SCREEN_WIDTH / scale.x, SCREEN_HEIGHT/ scale.y);
     return;
+}
+
+/// @brief Create a new entity inside the world
+/// @return The created entity
+Entity* entity_create() {
+  Entity *found = 0;
+  for (int i = 0; i < MAX_ENTITIES; i++) {
+    Entity* existing = &world->entities[i];
+    if (!existing->is_valid) {
+      found = existing;
+      break;
+    }
+  }
+  assert(found); // "No free entities"
+  found->is_valid = 1;
+  return found;
+}
+
+void update_camera(Camera2D *camera, Entity* player) {
+    camera->target = player->position;
 }
