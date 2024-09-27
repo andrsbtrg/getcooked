@@ -33,29 +33,43 @@ typedef struct Entity {
   Vector2 position;
 } Entity;
 
+#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 800
 #define MAX_ENTITIES 1024
+
 typedef struct World {
   Entity entities[MAX_ENTITIES];
 } World;
 
 inline Vector2 v2(float x, float y) { return (Vector2){x, y}; }
 
+// :globals
 World *world;
-// max 100 textures
 Sprite sprites[SPRITE_MAX];
 
 void init_entities();
 void update_player(Entity *player);
 void setup_window(void);
-void update_camera(Camera2D *, Entity *);
-
+void update_camera(Camera2D *, Entity *, float dt);
 Entity *entity_create();
 
-#define PLAYER_HEIGHT 8
-#define PLAYER_WIDTH 6
-
-#define SCREEN_HEIGHT 600
-#define SCREEN_WIDTH 800
+bool almost_equals(float a, float b, float epsilon) {
+  return fabs(a - b) <= epsilon;
+}
+bool animate_f32_to_target(float *value, float target, float delta_t,
+                           float rate) {
+  *value += (target - *value) * (1.0 - pow(2.0f, -rate * delta_t));
+  if (almost_equals(*value, target, 0.001f)) {
+    *value = target;
+    return true; // reached
+  }
+  return false;
+}
+void animate_v2_to_target(Vector2 *value, Vector2 target, float delta_t,
+                          float rate) {
+  animate_f32_to_target(&(value->x), target.x, delta_t, rate);
+  animate_f32_to_target(&(value->y), target.y, delta_t, rate);
+}
 
 /* Loads the image from path into memory
  * as a texture and assigns the SpriteID id
@@ -100,9 +114,10 @@ int main(void) {
 
   SetTargetFPS(60);
   while (!WindowShouldClose()) {
-    // Handle Keys
+    float dt = GetFrameTime();
+    update_camera(&camera, player, dt);
+
     update_player(player);
-    update_camera(&camera, player);
 
     BeginDrawing();
 
@@ -198,8 +213,9 @@ void setup_window() {
   return;
 }
 
-/// @brief Create a new entity inside the world
-/// @return The created entity
+/*
+ * Create a new entity inside the world
+ */
 Entity *entity_create() {
   Entity *found = 0;
   for (int i = 0; i < MAX_ENTITIES; i++) {
@@ -214,7 +230,6 @@ Entity *entity_create() {
   return found;
 }
 
-void update_camera(Camera2D *camera, Entity *player) {
-
-  camera->target = player->position;
+void update_camera(Camera2D *camera, Entity *player, float dt) {
+  animate_v2_to_target(&camera->target, player->position, dt, 15.0f);
 }
