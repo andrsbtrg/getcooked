@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #include <assert.h>
+#include <cstddef>
 #include <stdlib.h>
 
 typedef enum EntityArchetype {
@@ -10,8 +11,24 @@ typedef enum EntityArchetype {
   ARCH_TREE = 3,
 } EntityArchetype;
 
+typedef enum SpriteID {
+  SPRITE_nil,
+  SPRITE_player,
+  SPRITE_rock,
+  SPRITE_tree,
+  SPRITE_MAX
+} SpriteID;
+
+typedef struct Sprite {
+  Texture2D texture;
+  SpriteID id;
+} Sprite;
+
 typedef struct Entity {
   bool is_valid;
+  bool render_sprite;
+  Vector2 size;
+  SpriteID sprite_id;
   EntityArchetype arch;
   Vector2 position;
 } Entity;
@@ -24,6 +41,8 @@ typedef struct World {
 inline Vector2 v2(float x, float y) { return (Vector2){x, y}; }
 
 World *world;
+// max 100 textures
+Sprite sprites[SPRITE_MAX];
 
 void init_entities();
 void update_player(Entity *player);
@@ -38,33 +57,35 @@ Entity *entity_create();
 #define SCREEN_HEIGHT 600
 #define SCREEN_WIDTH 800
 
+/* Loads the image from path into memory
+ * as a texture and assigns the SpriteID id
+ */
+Sprite load_sprite(const char *path, SpriteID id) {
+  Image image = LoadImage(path);
+  if (image.data != NULL) {
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    sprites[id] = Sprite{texture = texture, id = id};
+    return sprites[id];
+  }
+  return sprites[SPRITE_nil];
+}
+
+/*
+ * Unloads all loaded textures
+ */
+void unload_textures() {
+  for (int i = 0; i < SPRITE_MAX; i++) {
+    Texture2D texture = sprites[i].texture;
+    UnloadTexture(texture);
+  }
+}
+
 int main(void) {
-  setup_window();
-
-  Image rock_image = LoadImage("/home/andres/projects/game/assets/rock.png");
-  if (rock_image.data == NULL) {
-    return 1;
-  }
-  Texture2D rock_texture = LoadTextureFromImage(rock_image);
-  UnloadImage(rock_image);
-
-  Image tree_image = LoadImage("/home/andres/projects/game/assets/tree.png");
-  if (tree_image.data == NULL) {
-    return 1;
-  }
-  Texture2D tree_texture = LoadTextureFromImage(tree_image);
-  UnloadImage(tree_image);
-
-  Image player_image =
-      LoadImage("/home/andres/projects/game/assets/player.png");
-  if (player_image.data == NULL) {
-    return 1;
-  }
-  Texture2D player_tx = LoadTextureFromImage(player_image);
-  UnloadImage(player_image);
-
   // Setup world
   world = (World *)malloc(sizeof(World));
+
+  setup_window();
 
   init_entities();
 
@@ -96,12 +117,14 @@ int main(void) {
       if (!found->is_valid) {
         continue;
       }
-      if (found->arch == ARCH_PLAYER) {
-        DrawTextureEx(player_tx, found->position, 0.0, 1.0f, WHITE);
-      } else if (found->arch == ARCH_TREE) {
-        DrawTextureV(tree_texture, found->position, WHITE);
-      } else if (found->arch == ARCH_ROCK) {
-        DrawTextureV(rock_texture, found->position, WHITE);
+      switch (found->arch) {
+      case ARCH_PLAYER: {
+        DrawTextureEx(sprites[found->sprite_id].texture, found->position, 0.0,
+                      1.0f, WHITE);
+      }
+      default: {
+        DrawTextureV(sprites[found->sprite_id].texture, found->position, WHITE);
+      }
       }
     }
 
@@ -112,27 +135,35 @@ int main(void) {
     EndDrawing();
   }
 
-  UnloadTexture(player_tx);
-  UnloadTexture(tree_texture);
-  UnloadTexture(rock_texture);
+  unload_textures();
   CloseWindow();
 
   return 0;
 }
 
 void init_entities() {
-  // initial player position
+  load_sprite("/home/andres/projects/game/assets/player.png", SPRITE_player);
+  load_sprite("/home/andres/projects/game/assets/tree.png", SPRITE_tree);
+  load_sprite("/home/andres/projects/game/assets/rock.png", SPRITE_rock);
+
   Entity *player = entity_create();
   player->arch = ARCH_PLAYER;
   player->position = v2(0, 0);
+  player->sprite_id = SPRITE_player;
 
-  Entity *rock = entity_create();
-  rock->arch = ARCH_ROCK;
-  rock->position = v2(10, -5);
+  for (int i = 0; i < 20; i++) {
+    int x = GetRandomValue(-100, 100);
+    int y = GetRandomValue(-100, 100);
+    Entity *rock = entity_create();
+    rock->arch = ARCH_ROCK;
+    rock->position = v2(x, y);
+    rock->sprite_id = SPRITE_rock;
+  }
 
   Entity *tree = entity_create();
   tree->position = v2(1, 10);
   tree->arch = ARCH_TREE;
+  tree->sprite_id = SPRITE_tree;
 
   return;
 }
@@ -184,5 +215,6 @@ Entity *entity_create() {
 }
 
 void update_camera(Camera2D *camera, Entity *player) {
+
   camera->target = player->position;
 }
