@@ -1,7 +1,14 @@
 BasedOnStyle: Chromium
+IndentPPDirectives: None
+SortIncludes: Never
+BreakBeforeBinaryOperators: All
+AlignOperands: DontAlign
 AlignAfterOpenBracket: BlockIndent
+BreakBeforeBraces: Custom
+BraceWrapping:
+AfterControlStatement: MultiLine
 BinPackArguments: false
-UseTab: Always
+UseTab: Never
 ContinuationIndentWidth: 2
 IndentWidth: 2
 TabWidth: 2
