@@ -1,0 +1,8 @@
+BasedOnStyle: Chromium
+AlignAfterOpenBracket: BlockIndent
+BinPackArguments: false
+UseTab: Always
+ContinuationIndentWidth: 2
+IndentWidth: 2
+TabWidth: 2
+ColumnLimit: 80
