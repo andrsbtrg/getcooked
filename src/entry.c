@@ -230,10 +230,12 @@ void init_entities() {
 }
 
 void setup_camera(Camera2D* camera) {
-  // camera->offset = Vector2 { SCREEN_WIDTH , SCREEN_HEIGHT };
+  int width = GetRenderWidth();
+  int height = GetRenderHeight();
+  camera->offset = Vector2{width / 2.0f, height / 2.0f};
   camera->rotation = 0.0f;
   camera->target = world->entities[0].position;
-  camera->zoom = 8.0;
+  camera->zoom = 5.0;
 }
 
 /// Move player
