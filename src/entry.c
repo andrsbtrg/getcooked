@@ -108,6 +108,9 @@ void unload_textures() {
 }
 
 int main(void) {
+  // Required so the window is not 1/4 of the screen in high dpi
+  SetConfigFlags(FLAG_WINDOW_HIGHDPI);
+
   // Setup world
   world = (World*)malloc(sizeof(World));
 
