@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <stdlib.h>
+
+#include <cmath>
 #include <cstddef>
+
 #include "raylib.h"
 #include "raymath.h"
 
@@ -30,11 +33,11 @@ typedef struct Entity {
   SpriteID sprite_id;
   EntityArchetype arch;
   Vector2 position;
-  Rectangle rec;
+  Vector2 size;
 } Entity;
 
-#define SCREEN_HEIGHT 600
-#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 1080
+#define SCREEN_WIDTH 1920
 #define MAX_ENTITIES 1024
 
 typedef struct World {
@@ -43,6 +46,11 @@ typedef struct World {
 
 inline Vector2 v2(float x, float y) {
   return (Vector2){x, y};
+}
+
+inline Rectangle get_entity_rec(Entity* entity) {
+  return (Rectangle){entity->position.x, entity->position.y, entity->size.x,
+                     entity->size.y};
 }
 
 // :globals
@@ -60,12 +68,10 @@ Entity* entity_create();
 bool almost_equals(float a, float b, float epsilon) {
   return fabs(a - b) <= epsilon;
 }
-bool animate_f32_to_target(
-  float* value,
-  float target,
-  float delta_t,
-  float rate
-) {
+bool animate_f32_to_target(float* value,
+                           float target,
+                           float delta_t,
+                           float rate) {
   *value += (target - *value) * (1.0 - pow(2.0f, -rate * delta_t));
   if (almost_equals(*value, target, 0.001f)) {
     *value = target;
@@ -73,12 +79,10 @@ bool animate_f32_to_target(
   }
   return false;
 }
-void animate_v2_to_target(
-  Vector2* value,
-  Vector2 target,
-  float delta_t,
-  float rate
-) {
+void animate_v2_to_target(Vector2* value,
+                          Vector2 target,
+                          float delta_t,
+                          float rate) {
   animate_f32_to_target(&(value->x), target.x, delta_t, rate);
   animate_f32_to_target(&(value->y), target.y, delta_t, rate);
 }
@@ -119,15 +123,18 @@ int main(void) {
   init_entities();
 
   Entity* player = &world->entities[0];
+  player->arch = ARCH_PLAYER;
 
   Camera2D camera = {0};
   setup_camera(&camera);
-  Vector2 camera_offset = v2(
-    0.5 * SCREEN_WIDTH / (2.0 * camera.zoom),
-    0.5 * SCREEN_HEIGHT / (2 * camera.zoom)
-  );
+
+  // Vector2 camera_offset = v2(
+  //   0.5 * SCREEN_WIDTH / (2.0 * camera.zoom),
+  //   0.5 * SCREEN_HEIGHT / (2 * camera.zoom)
+  // );
 
   SetTargetFPS(60);
+
   while (!WindowShouldClose()) {
     float dt = GetFrameTime();
     update_camera(&camera, player, dt);
@@ -139,8 +146,10 @@ int main(void) {
 
     BeginMode2D(camera);
 
-    Vector2 mouse_pos = GetScreenToWorld2D(GetMousePosition(), camera);
-    mouse_pos = Vector2Add(mouse_pos, camera_offset);
+    Vector2 mouse_pos_screen = GetMousePosition();
+    Vector2 mouse_pos_world = GetScreenToWorld2D(mouse_pos_screen, camera);
+    // mouse_pos_world.x -= (camera.offset.x / (camera.zoom ));
+    // mouse_pos_world.y -= (camera.offset.y /(camera.zoom));
 
     for (int i = 0; i < MAX_ENTITIES; i++) {
       Entity* entity = &world->entities[i];
@@ -150,43 +159,32 @@ int main(void) {
       if (!entity->is_valid) {
         continue;
       }
+
+      Rectangle rec = get_entity_rec(entity);
       switch (entity->arch) {
-        case ARCH_PLAYER: {
-          DrawTextureEx(
-            sprites[entity->sprite_id].texture,
-            entity->position,
-            0.0,
-            1.0f,
-            WHITE
-          );
-        }
         default: {
-          DrawTextureV(
-            sprites[entity->sprite_id].texture, entity->position, WHITE
-          );
+          if (CheckCollisionPointRec(mouse_pos_world, rec)) {
+            DrawRectangleV(entity->position, entity->size, RED);
+          } else {
+            DrawRectangleV(entity->position, entity->size, BLUE);
+          }
+          DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
+                       WHITE);
+          DrawText(TextFormat("[%i, %i]", (int)entity->position.x,
+                              (int)entity->position.y),
+                   entity->position.x, entity->position.y, 1, WHITE);
+          break;
         }
       }
     }
 
     EndMode2D();
-    DrawText(
-      TextFormat(
-        "Player pos: [%i , %i]",
-        (int)player->position.x,
-        (int)player->position.y
-      ),
-      400,
-      25,
-      20,
-      RED
-    );
-    DrawText(
-      TextFormat("Mouse pos: [%i , %i]", (int)mouse_pos.x, (int)mouse_pos.y),
-      180,
-      25,
-      20,
-      BLUE
-    );
+    DrawText(TextFormat("Mouse Screen: [%i , %i]", (int)mouse_pos_screen.x,
+                        (int)mouse_pos_screen.y),
+             400, 25, 20, RED);
+    DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
+                        (int)mouse_pos_world.y),
+             100, 25, 20, BLUE);
     EndDrawing();
   }
 
@@ -210,29 +208,32 @@ void init_entities() {
   player->arch = ARCH_PLAYER;
   player->position = v2(0, 0);
   player->sprite_id = SPRITE_player;
+  player->size = v2(6, 8);
 
-  for (int i = 0; i < 20; i++) {
+  for (int i = 0; i < 10; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
     Entity* rock = entity_create();
     rock->arch = ARCH_ROCK;
     rock->position = v2(x, y);
     rock->sprite_id = SPRITE_rock;
+    rock->size = v2(8, 8);
   }
 
   Entity* tree = entity_create();
   tree->position = v2(1, 10);
   tree->arch = ARCH_TREE;
   tree->sprite_id = SPRITE_tree;
+  tree->size = v2(8, 12);
 
   return;
 }
 
 void setup_camera(Camera2D* camera) {
-  camera->offset = v2(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f);
+  // camera->offset = Vector2 { SCREEN_WIDTH , SCREEN_HEIGHT };
   camera->rotation = 0.0f;
   camera->target = world->entities[0].position;
-  camera->zoom = 7.5f;
+  camera->zoom = 8.0;
 }
 
 /// Move player
@@ -264,7 +265,9 @@ void setup_window() {
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Game");
 
   Vector2 scale = GetWindowScaleDPI();
-  SetWindowSize(SCREEN_WIDTH / scale.x, SCREEN_HEIGHT / scale.y);
+  // SetWindowSize(SCREEN_WIDTH * scale.x, SCREEN_HEIGHT * scale.y);
+  // SetWindowMaxSize(1920, 1080);
+  // SetWindowPosition(100,100);
   return;
 }
 
