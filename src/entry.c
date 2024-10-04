@@ -36,8 +36,6 @@ typedef struct Entity {
   Vector2 size;
 } Entity;
 
-#define SCREEN_HEIGHT 1080
-#define SCREEN_WIDTH 1920
 #define MAX_ENTITIES 1024
 
 typedef struct World {
@@ -56,6 +54,9 @@ inline Rectangle get_entity_rec(Entity* entity) {
 // :globals
 World* world;
 Sprite sprites[SPRITE_MAX];
+
+int ScreenWidth = 800;
+int ScreenHeight = 600;
 
 void init_entities();
 void update_player(Entity* player);
@@ -111,10 +112,21 @@ void unload_textures() {
   }
 }
 
+Vector2 v2_screen_to_world(Vector2 position, Camera2D camera) {
+  int dpi = GetWindowScaleDPI().x;
+  Matrix camera_mat = GetCameraMatrix2D(camera);
+  Matrix invMatCamera = MatrixInvert(camera_mat);
+  // Apply the camera's zoom and offset before transforming
+  position.x += (int)(camera.offset.x / dpi);
+  position.y += (int)(camera.offset.y / dpi);
+  Vector3 transform =
+      Vector3Transform((Vector3){position.x, position.y, 0}, invMatCamera);
+
+  return (Vector2){dpi * transform.x, dpi * transform.y};
+}
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
-
   // Setup world
   world = (World*)malloc(sizeof(World));
 
@@ -128,13 +140,9 @@ int main(void) {
   Camera2D camera = {0};
   setup_camera(&camera);
 
-  // Vector2 camera_offset = v2(
-  //   0.5 * SCREEN_WIDTH / (2.0 * camera.zoom),
-  //   0.5 * SCREEN_HEIGHT / (2 * camera.zoom)
-  // );
-
   SetTargetFPS(60);
 
+  bool once = true;
   while (!WindowShouldClose()) {
     float dt = GetFrameTime();
     update_camera(&camera, player, dt);
@@ -147,9 +155,17 @@ int main(void) {
     BeginMode2D(camera);
 
     Vector2 mouse_pos_screen = GetMousePosition();
-    Vector2 mouse_pos_world = GetScreenToWorld2D(mouse_pos_screen, camera);
-    // mouse_pos_world.x -= (camera.offset.x / (camera.zoom ));
-    // mouse_pos_world.y -= (camera.offset.y /(camera.zoom));
+    mouse_pos_screen.x = mouse_pos_screen.x * 2;
+    mouse_pos_screen.y = mouse_pos_screen.y * 2;
+
+    // Apply DPI scaling to the mouse position
+    Vector2 scaling = GetWindowScaleDPI();
+    // mouse_pos_screen.x *= scaling.x;
+    // mouse_pos_screen.y *= scaling.y;
+
+    // Now get the world position
+    Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, camera);
+    // Vector2 mouse_pos_world2 = GetScreenToWorld2D(mouse_pos_screen, camera);
 
     for (int i = 0; i < MAX_ENTITIES; i++) {
       Entity* entity = &world->entities[i];
@@ -164,9 +180,9 @@ int main(void) {
       switch (entity->arch) {
         default: {
           if (CheckCollisionPointRec(mouse_pos_world, rec)) {
-            DrawRectangleV(entity->position, entity->size, RED);
+            DrawRectangleRec(rec, RED);
           } else {
-            DrawRectangleV(entity->position, entity->size, BLUE);
+            DrawRectangleRec(rec, BLUE);
           }
           DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                        WHITE);
@@ -185,6 +201,16 @@ int main(void) {
     DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
                         (int)mouse_pos_world.y),
              100, 25, 20, BLUE);
+
+    int offsetX = camera.offset.x / (camera.zoom * 4);
+    int offsetY = camera.offset.y / (camera.zoom * 4);
+    int x =
+        (int)mouse_pos_world.x + (int)(camera.offset.x / camera.zoom) - offsetX;
+    // (int)(camera.offset.x * 0.25 / camera.zoom);
+    int y =
+        (int)mouse_pos_world.y + (int)(camera.offset.y / camera.zoom) - offsetY;
+    // (int)(camera.offset.y * 0.25 / camera.zoom);
+    DrawText(TextFormat("Mouse Offset: [%i , %i]", x, y), 100, 45, 20, WHITE);
     EndDrawing();
   }
 
@@ -235,7 +261,7 @@ void setup_camera(Camera2D* camera) {
   camera->offset = Vector2{width / 2.0f, height / 2.0f};
   camera->rotation = 0.0f;
   camera->target = world->entities[0].position;
-  camera->zoom = 5.0;
+  camera->zoom = 20.0;
 }
 
 /// Move player
@@ -264,12 +290,7 @@ void update_player(Entity* player) {
  * Initialize and set the Window size
  */
 void setup_window() {
-  InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Game");
-
-  Vector2 scale = GetWindowScaleDPI();
-  // SetWindowSize(SCREEN_WIDTH * scale.x, SCREEN_HEIGHT * scale.y);
-  // SetWindowMaxSize(1920, 1080);
-  // SetWindowPosition(100,100);
+  InitWindow(ScreenWidth, ScreenHeight, "Game");
   return;
 }
 
@@ -291,5 +312,5 @@ Entity* entity_create() {
 }
 
 void update_camera(Camera2D* camera, Entity* player, float dt) {
-  animate_v2_to_target(&camera->target, player->position, dt, 15.0f);
+  animate_v2_to_target(&camera->target, player->position, dt, 5.0f);
 }
