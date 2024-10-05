@@ -58,72 +58,33 @@ Sprite sprites[SPRITE_MAX];
 int ScreenWidth = 800;
 int ScreenHeight = 600;
 
+Entity* entity_create();
+Sprite load_sprite(const char* path, SpriteID id);
 void init_entities();
 void update_player(Entity* player);
 void setup_window(void);
 void setup_camera(Camera2D*);
 void update_camera(Camera2D*, Entity*, float dt);
+void unload_textures();
 
-Entity* entity_create();
+// :math
+bool almost_equals(float a, float b, float epsilon);
 
-bool almost_equals(float a, float b, float epsilon) {
-  return fabs(a - b) <= epsilon;
-}
+// :engine functions
+Matrix get_camera_2d_mat(Camera2D camera);
+Vector2 v2_screen_to_world(Vector2 screenPos, Camera2D camera);
+
+// :animation functions
 bool animate_f32_to_target(float* value,
                            float target,
                            float delta_t,
-                           float rate) {
-  *value += (target - *value) * (1.0 - pow(2.0f, -rate * delta_t));
-  if (almost_equals(*value, target, 0.001f)) {
-    *value = target;
-    return true;  // reached
-  }
-  return false;
-}
+                           float rate);
+
 void animate_v2_to_target(Vector2* value,
                           Vector2 target,
                           float delta_t,
-                          float rate) {
-  animate_f32_to_target(&(value->x), target.x, delta_t, rate);
-  animate_f32_to_target(&(value->y), target.y, delta_t, rate);
-}
+                          float rate);
 
-/* Loads the image from path into memory
- * as a texture and assigns the SpriteID id
- */
-Sprite load_sprite(const char* path, SpriteID id) {
-  Image image = LoadImage(path);
-  if (image.data != NULL) {
-    Texture2D texture = LoadTextureFromImage(image);
-    UnloadImage(image);
-    sprites[id] = Sprite{texture = texture, id = id};
-    return sprites[id];
-  }
-  return sprites[SPRITE_nil];
-}
-
-/*
- * Unloads all loaded textures
- */
-void unload_textures() {
-  for (int i = 0; i < SPRITE_MAX; i++) {
-    Texture2D texture = sprites[i].texture;
-    UnloadTexture(texture);
-  }
-}
-
-Vector2 v2_screen_to_world(Vector2 position, Camera2D camera) {
-  int dpi = GetWindowScaleDPI().x;
-  Matrix camera_mat = GetCameraMatrix2D(camera);
-  Matrix invMatCamera = MatrixInvert(camera_mat);
-  // Apply the camera's zoom and offset before transforming
-  position.x += (int)(camera.offset.x / dpi);
-  position.y += (int)(camera.offset.y / dpi);
-  Vector3 transform =
-      Vector3Transform((Vector3){position.x, position.y, 0}, invMatCamera);
-
-  return (Vector2){dpi * transform.x, dpi * transform.y};
-}
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -152,16 +113,13 @@ int main(void) {
 
     update_player(player);
 
-    BeginMode2D(camera);
-
     Vector2 mouse_pos_screen = GetMousePosition();
-    mouse_pos_screen.x = mouse_pos_screen.x * 2;
-    mouse_pos_screen.y = mouse_pos_screen.y * 2;
+    BeginMode2D(camera);
 
     // Apply DPI scaling to the mouse position
     Vector2 scaling = GetWindowScaleDPI();
-    // mouse_pos_screen.x *= scaling.x;
-    // mouse_pos_screen.y *= scaling.y;
+    mouse_pos_screen.x = mouse_pos_screen.x * 2;
+    mouse_pos_screen.y = mouse_pos_screen.y * 2;
 
     // Now get the world position
     Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, camera);
@@ -181,14 +139,12 @@ int main(void) {
         default: {
           if (CheckCollisionPointRec(mouse_pos_world, rec)) {
             DrawRectangleRec(rec, RED);
-          } else {
-            DrawRectangleRec(rec, BLUE);
           }
           DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                        WHITE);
-          DrawText(TextFormat("[%i, %i]", (int)entity->position.x,
-                              (int)entity->position.y),
-                   entity->position.x, entity->position.y, 1, WHITE);
+          // DrawText(TextFormat("[%i, %i]", (int)entity->position.x,
+          //                     (int)entity->position.y),
+          //          entity->position.x, entity->position.y, 1, WHITE);
           break;
         }
       }
@@ -202,15 +158,6 @@ int main(void) {
                         (int)mouse_pos_world.y),
              100, 25, 20, BLUE);
 
-    int offsetX = camera.offset.x / (camera.zoom * 4);
-    int offsetY = camera.offset.y / (camera.zoom * 4);
-    int x =
-        (int)mouse_pos_world.x + (int)(camera.offset.x / camera.zoom) - offsetX;
-    // (int)(camera.offset.x * 0.25 / camera.zoom);
-    int y =
-        (int)mouse_pos_world.y + (int)(camera.offset.y / camera.zoom) - offsetY;
-    // (int)(camera.offset.y * 0.25 / camera.zoom);
-    DrawText(TextFormat("Mouse Offset: [%i , %i]", x, y), 100, 45, 20, WHITE);
     EndDrawing();
   }
 
@@ -313,4 +260,100 @@ Entity* entity_create() {
 
 void update_camera(Camera2D* camera, Entity* player, float dt) {
   animate_v2_to_target(&camera->target, player->position, dt, 5.0f);
+}
+
+/*
+ * Gets the camera 2D matrix.
+ */
+Matrix get_camera_2d_mat(Camera2D camera) {
+  Matrix matTransform = MatrixIdentity();
+
+  // Translate matrix to camera's target (world coordinates)
+  matTransform = MatrixTranslate(-camera.target.x, -camera.target.y, 0.0f);
+
+  // Apply camera's rotation if any (in radians)
+  if (camera.rotation != 0.0f) {
+    float rotationRadians = camera.rotation * DEG2RAD;
+    matTransform = MatrixMultiply(matTransform, MatrixRotateZ(rotationRadians));
+  }
+
+  // Apply camera's zoom factor
+  matTransform =
+      MatrixMultiply(matTransform, MatrixScale(camera.zoom, camera.zoom, 1.0f));
+
+  // Apply camera's offset (usually center of screen)
+  matTransform = MatrixMultiply(
+      matTransform, MatrixTranslate(camera.offset.x, camera.offset.y, 0.0f));
+
+  return matTransform;
+}
+
+/*
+ * Converts screen coordinates to world coordinates.
+ * Works with high DPI monitor
+ */
+Vector2 v2_screen_to_world(Vector2 screenPos, Camera2D camera) {
+  // Get DPI scaling for the window (if using high-DPI mode)
+  int dpi = GetWindowScaleDPI().x;
+
+  // Adjust screen coordinates for DPI scaling
+  screenPos.x *= dpi;
+  screenPos.y *= dpi;
+
+  Matrix cameraMatrix = get_camera_2d_mat(camera);
+
+  // Invert the camera matrix to reverse the transformation
+  Matrix invCameraMatrix = MatrixInvert(cameraMatrix);
+
+  // Transform the screen position into world coordinates
+  Vector3 screenPos3D = {screenPos.x, screenPos.y, 0.0f};
+  Vector3 worldPos3D = Vector3Transform(screenPos3D, invCameraMatrix);
+
+  return (Vector2){worldPos3D.x, worldPos3D.y};
+}
+
+bool almost_equals(float a, float b, float epsilon) {
+  return fabs(a - b) <= epsilon;
+}
+bool animate_f32_to_target(float* value,
+                           float target,
+                           float delta_t,
+                           float rate) {
+  *value += (target - *value) * (1.0 - pow(2.0f, -rate * delta_t));
+  if (almost_equals(*value, target, 0.001f)) {
+    *value = target;
+    return true;  // reached
+  }
+  return false;
+}
+void animate_v2_to_target(Vector2* value,
+                          Vector2 target,
+                          float delta_t,
+                          float rate) {
+  animate_f32_to_target(&(value->x), target.x, delta_t, rate);
+  animate_f32_to_target(&(value->y), target.y, delta_t, rate);
+}
+
+/* Loads the image from path into memory
+ * as a texture and assigns the SpriteID id
+ */
+Sprite load_sprite(const char* path, SpriteID id) {
+  Image image = LoadImage(path);
+  if (image.data != NULL) {
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    sprites[id] = Sprite{texture = texture, id = id};
+    return sprites[id];
+  }
+  return sprites[SPRITE_nil];
+}
+
+/*
+ * Unloads all loaded textures
+ */
+void unload_textures() {
+  for (int i = 0; i < SPRITE_MAX; i++) {
+    Texture2D texture = sprites[i].texture;
+    UnloadTexture(texture);
+  }
 }
