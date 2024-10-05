@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 
 #include "raylib.h"
 #include "raymath.h"
@@ -58,6 +59,8 @@ Sprite sprites[SPRITE_MAX];
 int ScreenWidth = 800;
 int ScreenHeight = 600;
 
+const float TILE_SIZE = 8.0f;
+
 Entity* entity_create();
 Sprite load_sprite(const char* path, SpriteID id);
 void init_entities();
@@ -85,6 +88,13 @@ void animate_v2_to_target(Vector2* value,
                           float delta_t,
                           float rate);
 
+Vector2 world_to_tile_v2(Vector2 position, float tile_size) {
+  return (Vector2){position.x / tile_size, position.y / tile_size};
+}
+Vector2 round_pos_to_tile(int x, int y, float tile_size) {
+  return (Vector2){(int)(x / tile_size) * tile_size,
+                   (int)(y / tile_size) * tile_size};
+}
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -109,13 +119,11 @@ int main(void) {
     update_camera(&camera, player, dt);
 
     BeginDrawing();
-    ClearBackground(DARKGRAY);
+    ClearBackground(Color{25, 25, 31, 0});
 
     update_player(player);
 
     Vector2 mouse_pos_screen = GetMousePosition();
-    BeginMode2D(camera);
-
     // Apply DPI scaling to the mouse position
     Vector2 scaling = GetWindowScaleDPI();
     mouse_pos_screen.x = mouse_pos_screen.x * 2;
@@ -123,7 +131,30 @@ int main(void) {
 
     // Now get the world position
     Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, camera);
-    // Vector2 mouse_pos_world2 = GetScreenToWorld2D(mouse_pos_screen, camera);
+
+    BeginMode2D(camera);
+
+    // :tile rendering
+
+    Vector2 player_pos_tile = world_to_tile_v2(player->position, TILE_SIZE);
+    int tile_radius_x = 13;
+    int tile_radius_y = 10;
+    for (int i = player_pos_tile.x - tile_radius_x;
+         i < player_pos_tile.x + tile_radius_x; i++) {
+      for (int j = player_pos_tile.y - tile_radius_y;
+           j < player_pos_tile.y + tile_radius_y; j++) {
+        Rectangle rec = {TILE_SIZE * i, TILE_SIZE * j, TILE_SIZE, TILE_SIZE};
+
+        // draw tile when hovered with mouse
+        if (CheckCollisionPointRec(mouse_pos_world, rec)) {
+          DrawRectangleLinesEx(rec, 1.5f, RED);
+        }
+        // draw checkerboard
+        if (abs(j % 2) == abs(i % 2)) {
+          DrawRectangleRec(rec, (Color){255, 255, 255, 10});
+        }
+      }
+    }
 
     for (int i = 0; i < MAX_ENTITIES; i++) {
       Entity* entity = &world->entities[i];
@@ -138,13 +169,10 @@ int main(void) {
       switch (entity->arch) {
         default: {
           if (CheckCollisionPointRec(mouse_pos_world, rec)) {
-            DrawRectangleRec(rec, RED);
+            DrawRectangleLinesEx(rec, 1.5f, RED);
           }
           DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                        WHITE);
-          // DrawText(TextFormat("[%i, %i]", (int)entity->position.x,
-          //                     (int)entity->position.y),
-          //          entity->position.x, entity->position.y, 1, WHITE);
           break;
         }
       }
@@ -188,16 +216,20 @@ void init_entities() {
     int y = GetRandomValue(-100, 100);
     Entity* rock = entity_create();
     rock->arch = ARCH_ROCK;
-    rock->position = v2(x, y);
+    rock->position = round_pos_to_tile(x, y, TILE_SIZE);
     rock->sprite_id = SPRITE_rock;
     rock->size = v2(8, 8);
   }
 
-  Entity* tree = entity_create();
-  tree->position = v2(1, 10);
-  tree->arch = ARCH_TREE;
-  tree->sprite_id = SPRITE_tree;
-  tree->size = v2(8, 12);
+  for (int i = 0; i < 10; i++) {
+    int x = GetRandomValue(-100, 100);
+    int y = GetRandomValue(-100, 100);
+    Entity* tree = entity_create();
+    tree->position = round_pos_to_tile(x, y, TILE_SIZE);
+    tree->arch = ARCH_TREE;
+    tree->sprite_id = SPRITE_tree;
+    tree->size = v2(8, 16);
+  }
 
   return;
 }
@@ -208,7 +240,7 @@ void setup_camera(Camera2D* camera) {
   camera->offset = Vector2{width / 2.0f, height / 2.0f};
   camera->rotation = 0.0f;
   camera->target = world->entities[0].position;
-  camera->zoom = 20.0;
+  camera->zoom = 10.0;
 }
 
 /// Move player
