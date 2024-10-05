@@ -147,7 +147,7 @@ int main(void) {
 
         // draw tile when hovered with mouse
         if (CheckCollisionPointRec(mouse_pos_world, rec)) {
-          DrawRectangleLinesEx(rec, 1.5f, RED);
+          DrawRectangleLinesEx(rec, 1.5f, YELLOW);
         }
         // draw checkerboard
         if (abs(j % 2) == abs(i % 2)) {
