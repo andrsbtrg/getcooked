@@ -47,10 +47,16 @@ typedef struct Entity {
   int health;
 } Entity;
 
+typedef struct ItemData {
+  int amount;
+  SpriteID sprite_id;
+} ItemData;
+
 #define MAX_ENTITIES 1024
 
 typedef struct World {
   Entity entities[MAX_ENTITIES];
+  ItemData inventory[ARCH_MAX];
 } World;
 
 typedef struct WorldFrame {
@@ -129,7 +135,16 @@ Vector2 get_entity_center(Entity* entity) {
 }
 
 void entity_destroy(Entity* entity) {
+  entity->is_valid = false;
   entity = {0};
+}
+
+void setup_inventory() {
+  world->inventory[ARCH_WOOD_ITEM].amount = 5;
+  world->inventory[ARCH_WOOD_ITEM].sprite_id = SPRITE_wood;
+
+  world->inventory[ARCH_ROCK_ITEM].amount = 1;
+  world->inventory[ARCH_ROCK_ITEM].sprite_id = SPRITE_rock_item;
 }
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
@@ -143,6 +158,9 @@ int main(void) {
 
   Entity* player = &world->entities[0];
   player->arch = ARCH_PLAYER;
+
+  // :inventory setup
+  setup_inventory();
 
   Camera2D camera = {0};
   setup_camera(&camera);
@@ -201,9 +219,6 @@ int main(void) {
       if (!entity->is_valid) {
         continue;
       }
-      if (entity->health < 1) {
-        entity->is_valid = false;
-      }
 
       Rectangle rec = get_entity_rec(entity);
       Rectangle selection_rec = expand_rectangle(rec, ENTITY_SELECTION_RADIUS);
@@ -237,16 +252,27 @@ int main(void) {
           DrawRectangleRec(rec, tile_color);
           if (entity->is_item) {
             // float
-            float offset = sin(GetTime());
+            float offset = sin(4 * GetTime());
             Vector2 pos = v2(entity->position.x, entity->position.y + offset);
-            Rectangle rec_transform = {pos.x, pos.y, rec.width, rec.height};
             DrawTextureV(sprites[entity->sprite_id].texture, pos, WHITE);
-            DrawRectangleLinesEx(rec_transform, 0.5f, GOLD);
           } else {
             DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                          WHITE);
           }
           break;
+        }
+      }
+    }
+
+    // :pickup items
+    {
+      if (world_frame.near_player) {
+        Entity* entity_near = world_frame.near_player;
+        if (entity_near->is_valid && entity_near->is_item) {
+          // TODO: Pickup animation
+
+          world->inventory[entity_near->arch].amount += 1;
+          entity_destroy(entity_near);
         }
       }
     }
@@ -264,10 +290,8 @@ int main(void) {
               item->arch = ARCH_WOOD_ITEM;
               item->size = v2(8, 8);
               item->sprite_id = SPRITE_wood;
-              item->health = 1;
-              item->is_destroyable = true;
+              item->is_destroyable = false;
               item->is_item = true;
-              entity_destroy(world_frame.selected);
             } else if (world_frame.selected->arch == ARCH_ROCK) {
               Entity* item = entity_create();
               Vector2 destroyed = world_frame.selected->position;
@@ -275,16 +299,36 @@ int main(void) {
               item->arch = ARCH_ROCK_ITEM;
               item->size = v2(8, 8);
               item->sprite_id = SPRITE_rock_item;
-              item->health = 1;
-              item->is_destroyable = true;
+              item->is_destroyable = false;
               item->is_item = true;
             }
+            entity_destroy(world_frame.selected);
           }
         }
       }
     }
 
     EndMode2D();
+
+    // :ui
+    {
+      int item_pos = 0;
+      for (int i = 0; i < ARCH_MAX; i++) {
+        if (world->inventory[i].amount == 0)
+          continue;
+        ItemData inventory_item = world->inventory[i];
+        Vector2 pos =
+            v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
+        DrawRectangleV(pos, v2(40, 40), (Color){245, 245, 245, 50});
+        DrawTextureEx(sprites[inventory_item.sprite_id].texture, pos, 0, 5,
+                      WHITE);
+        DrawText(TextFormat("[%i]", world->inventory[i].amount), pos.x,
+                 pos.y + 20, 20, WHITE);
+        item_pos++;
+      }
+    }
+
+    // :dbg ui
     DrawText(TextFormat("Mouse Screen: [%i , %i]", (int)mouse_pos_screen.x,
                         (int)mouse_pos_screen.y),
              400, 25, 20, RED);
@@ -353,7 +397,6 @@ void init_entities() {
   wood->arch = ARCH_WOOD_ITEM;
   wood->sprite_id = SPRITE_wood;
   wood->size = v2(8, 8);
-  wood->health = 1;
   wood->is_destroyable = true;
   wood->is_item = true;
 
