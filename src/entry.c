@@ -35,6 +35,7 @@ typedef struct Entity {
   EntityArchetype arch;
   Vector2 position;
   Vector2 size;
+  int health;
 } Entity;
 
 #define MAX_ENTITIES 1024
@@ -74,6 +75,7 @@ int ScreenWidth = 800;
 int ScreenHeight = 600;
 
 const float TILE_SIZE = 8.0f;
+const float ENTITY_SELECTION_RADIUS = 10;
 
 Entity* entity_create();
 Sprite load_sprite(const char* path, SpriteID id);
@@ -187,31 +189,34 @@ int main(void) {
       }
 
       Rectangle rec = get_entity_rec(entity);
-      Rectangle selection_rec = expand_rectangle(rec, 10);
+      Rectangle selection_rec = expand_rectangle(rec, ENTITY_SELECTION_RADIUS);
 
       // :selecting
       if (CheckCollisionPointRec(mouse_pos_world, selection_rec)) {
-        world_frame.selected = entity;
+        if (!world_frame.selected)
+          world_frame.selected = entity;
+      }
+      if (entity->arch != ARCH_PLAYER &&
+          CheckCollisionPointRec(get_entity_center(player), selection_rec)) {
+        world_frame.near_player = entity;
       }
 
       // :rendering
       switch (entity->arch) {
         case ARCH_PLAYER: {
-          if (CheckCollisionPointRec(mouse_pos_world, rec)) {
-            DrawRectangleLinesEx(rec, 1.5f, RED);
-          }
           DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                        WHITE);
           break;
         }
         default: {
+          Color tile_color = {0};
           if (entity == world_frame.selected) {
-            DrawRectangleRec(rec, (Color){255, 255, 255, 50});
+            tile_color = (Color){255, 255, 255, 50};
           }
-          if (CheckCollisionPointRec(get_entity_center(player),
-                                     selection_rec)) {
-            DrawRectangleRec(rec, (Color){255, 0, 0, 50});
+          if (entity == world_frame.near_player) {
+            tile_color = (Color){255, 0, 0, 50};
           }
+          DrawRectangleRec(rec, tile_color);
           DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                        WHITE);
           break;
@@ -246,11 +251,15 @@ void init_entities() {
   load_sprite("/home/andres/projects/game/assets/tree.png", SPRITE_tree);
   load_sprite("/home/andres/projects/game/assets/rock.png", SPRITE_rock);
 
+  int rock_health = 3;
+  int tree_health = 3;
+
   Entity* player = entity_create();
   player->arch = ARCH_PLAYER;
   player->position = v2(0, 0);
   player->sprite_id = SPRITE_player;
   player->size = v2(6, 8);
+  player->health = 10;
 
   for (int i = 0; i < 10; i++) {
     int x = GetRandomValue(-100, 100);
@@ -260,6 +269,7 @@ void init_entities() {
     rock->position = round_pos_to_tile(x, y, TILE_SIZE);
     rock->sprite_id = SPRITE_rock;
     rock->size = v2(8, 8);
+    rock->health = rock_health;
   }
 
   for (int i = 0; i < 10; i++) {
@@ -270,6 +280,7 @@ void init_entities() {
     tree->arch = ARCH_TREE;
     tree->sprite_id = SPRITE_tree;
     tree->size = v2(8, 16);
+    tree->health = tree_health;
   }
 
   return;
