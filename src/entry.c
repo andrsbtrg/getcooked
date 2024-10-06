@@ -118,6 +118,10 @@ Vector2 get_entity_center(Entity* entity) {
       entity->position.y + entity->size.x * 0.5f,
   };
 }
+
+void entity_destroy(Entity* entity) {
+  entity = {0};
+}
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -158,23 +162,24 @@ int main(void) {
     BeginMode2D(camera);
 
     // :tile rendering
+    {
+      Vector2 player_pos_tile = world_to_tile_v2(player->position, TILE_SIZE);
+      int tile_radius_x = 13;
+      int tile_radius_y = 10;
+      for (int i = player_pos_tile.x - tile_radius_x;
+           i < player_pos_tile.x + tile_radius_x; i++) {
+        for (int j = player_pos_tile.y - tile_radius_y;
+             j < player_pos_tile.y + tile_radius_y; j++) {
+          Rectangle rec = {TILE_SIZE * i, TILE_SIZE * j, TILE_SIZE, TILE_SIZE};
 
-    Vector2 player_pos_tile = world_to_tile_v2(player->position, TILE_SIZE);
-    int tile_radius_x = 13;
-    int tile_radius_y = 10;
-    for (int i = player_pos_tile.x - tile_radius_x;
-         i < player_pos_tile.x + tile_radius_x; i++) {
-      for (int j = player_pos_tile.y - tile_radius_y;
-           j < player_pos_tile.y + tile_radius_y; j++) {
-        Rectangle rec = {TILE_SIZE * i, TILE_SIZE * j, TILE_SIZE, TILE_SIZE};
-
-        // draw tile when hovered with mouse
-        if (CheckCollisionPointRec(mouse_pos_world, rec)) {
-          DrawRectangleLinesEx(rec, 0.5f, (Color){255, 255, 255, 100});
-        }
-        // draw checkerboard
-        if (abs(j % 2) == abs(i % 2)) {
-          DrawRectangleRec(rec, (Color){255, 255, 255, 10});
+          // draw tile when hovered with mouse
+          if (CheckCollisionPointRec(mouse_pos_world, rec)) {
+            DrawRectangleLinesEx(rec, 0.5f, (Color){255, 255, 255, 100});
+          }
+          // draw checkerboard
+          if (abs(j % 2) == abs(i % 2)) {
+            DrawRectangleRec(rec, (Color){255, 255, 255, 10});
+          }
         }
       }
     }
@@ -186,6 +191,9 @@ int main(void) {
       }
       if (!entity->is_valid) {
         continue;
+      }
+      if (entity->health < 1) {
+        entity->is_valid = false;
       }
 
       Rectangle rec = get_entity_rec(entity);
@@ -220,6 +228,18 @@ int main(void) {
           DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                        WHITE);
           break;
+        }
+      }
+    }
+
+    // :clickng
+    {
+      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (world_frame.selected) {
+          world_frame.selected->health--;
+          if (world_frame.selected->health <= 0) {
+            entity_destroy(world_frame.selected);
+          }
         }
       }
     }
