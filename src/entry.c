@@ -113,7 +113,6 @@ int main(void) {
 
   SetTargetFPS(60);
 
-  bool once = true;
   while (!WindowShouldClose()) {
     float dt = GetFrameTime();
     update_camera(&camera, player, dt);
@@ -125,9 +124,9 @@ int main(void) {
 
     Vector2 mouse_pos_screen = GetMousePosition();
     // Apply DPI scaling to the mouse position
-    Vector2 scaling = GetWindowScaleDPI();
-    mouse_pos_screen.x = mouse_pos_screen.x * 2;
-    mouse_pos_screen.y = mouse_pos_screen.y * 2;
+    int dpi_scale = GetWindowScaleDPI().x;
+    mouse_pos_screen.x = mouse_pos_screen.x * dpi_scale;
+    mouse_pos_screen.y = mouse_pos_screen.y * dpi_scale;
 
     // Now get the world position
     Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, camera);
@@ -237,10 +236,11 @@ void init_entities() {
 void setup_camera(Camera2D* camera) {
   int width = GetRenderWidth();
   int height = GetRenderHeight();
+  int dpi_scale = GetWindowScaleDPI().x;
   camera->offset = Vector2{width / 2.0f, height / 2.0f};
   camera->rotation = 0.0f;
   camera->target = world->entities[0].position;
-  camera->zoom = 10.0;
+  camera->zoom = 5 * dpi_scale;
 }
 
 /// Move player
