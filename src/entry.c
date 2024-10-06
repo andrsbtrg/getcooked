@@ -13,6 +13,11 @@ typedef enum EntityArchetype {
   ARCH_PLAYER = 1,
   ARCH_ROCK = 2,
   ARCH_TREE = 3,
+
+  ARCH_ROCK_ITEM = 4,
+  ARCH_WOOD_ITEM = 5,
+
+  ARCH_MAX,
 } EntityArchetype;
 
 typedef enum SpriteID {
@@ -20,6 +25,8 @@ typedef enum SpriteID {
   SPRITE_player,
   SPRITE_rock,
   SPRITE_tree,
+  SPRITE_wood,
+  SPRITE_rock_item,
   SPRITE_MAX
 } SpriteID;
 
@@ -30,6 +37,7 @@ typedef struct Sprite {
 
 typedef struct Entity {
   bool is_valid;
+  bool is_destroyable;
   bool render_sprite;
   SpriteID sprite_id;
   EntityArchetype arch;
@@ -232,13 +240,32 @@ int main(void) {
       }
     }
 
-    // :clickng
+    // :clicking
     {
       if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        if (world_frame.selected) {
+        if (world_frame.selected && world_frame.selected->is_destroyable) {
           world_frame.selected->health--;
           if (world_frame.selected->health <= 0) {
-            entity_destroy(world_frame.selected);
+            if (world_frame.selected->arch == ARCH_TREE) {
+              Entity* item = entity_create();
+              Vector2 destroyed = world_frame.selected->position;
+              item->position = v2(destroyed.x, destroyed.y + TILE_SIZE);
+              item->arch = ARCH_WOOD_ITEM;
+              item->size = v2(8, 8);
+              item->sprite_id = SPRITE_wood;
+              item->health = 1;
+              item->is_destroyable = true;
+              entity_destroy(world_frame.selected);
+            } else if (world_frame.selected->arch == ARCH_ROCK) {
+              Entity* item = entity_create();
+              Vector2 destroyed = world_frame.selected->position;
+              item->position = v2(destroyed.x, destroyed.y);
+              item->arch = ARCH_ROCK_ITEM;
+              item->size = v2(8, 8);
+              item->sprite_id = SPRITE_rock_item;
+              item->health = 1;
+              item->is_destroyable = true;
+            }
           }
         }
       }
@@ -270,6 +297,9 @@ void init_entities() {
   load_sprite("/home/andres/projects/game/assets/player.png", SPRITE_player);
   load_sprite("/home/andres/projects/game/assets/tree.png", SPRITE_tree);
   load_sprite("/home/andres/projects/game/assets/rock.png", SPRITE_rock);
+  load_sprite("/home/andres/projects/game/assets/wood.png", SPRITE_wood);
+  load_sprite("/home/andres/projects/game/assets/rock_item.png",
+              SPRITE_rock_item);
 
   int rock_health = 3;
   int tree_health = 3;
@@ -280,6 +310,7 @@ void init_entities() {
   player->sprite_id = SPRITE_player;
   player->size = v2(6, 8);
   player->health = 10;
+  player->is_destroyable = false;
 
   for (int i = 0; i < 10; i++) {
     int x = GetRandomValue(-100, 100);
@@ -290,6 +321,7 @@ void init_entities() {
     rock->sprite_id = SPRITE_rock;
     rock->size = v2(8, 8);
     rock->health = rock_health;
+    rock->is_destroyable = true;
   }
 
   for (int i = 0; i < 10; i++) {
@@ -301,7 +333,15 @@ void init_entities() {
     tree->sprite_id = SPRITE_tree;
     tree->size = v2(8, 16);
     tree->health = tree_health;
+    tree->is_destroyable = true;
   }
+  Entity* wood = entity_create();
+  wood->position = round_pos_to_tile(20, 30, TILE_SIZE);
+  wood->arch = ARCH_WOOD_ITEM;
+  wood->sprite_id = SPRITE_wood;
+  wood->size = v2(8, 8);
+  wood->health = 1;
+  wood->is_destroyable = true;
 
   return;
 }
@@ -359,7 +399,7 @@ Entity* entity_create() {
     }
   }
   assert(found);  // "No free entities"
-  found->is_valid = 1;
+  found->is_valid = true;
   return found;
 }
 
