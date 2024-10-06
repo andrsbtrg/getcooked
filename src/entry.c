@@ -43,8 +43,22 @@ typedef struct World {
   Entity entities[MAX_ENTITIES];
 } World;
 
+typedef struct WorldFrame {
+  Entity* selected;
+  Entity* near_player;
+} WorldFrame;
+
 inline Vector2 v2(float x, float y) {
   return (Vector2){x, y};
+}
+
+inline Rectangle expand_rectangle(Rectangle rec, float offset) {
+  return (Rectangle){
+      rec.x -= offset * 0.5,
+      rec.y -= offset * 0.5,
+      rec.width += offset,
+      rec.height += offset,
+  };
 }
 
 inline Rectangle get_entity_rec(Entity* entity) {
@@ -95,6 +109,13 @@ Vector2 round_pos_to_tile(int x, int y, float tile_size) {
   return (Vector2){(int)(x / tile_size) * tile_size,
                    (int)(y / tile_size) * tile_size};
 }
+
+Vector2 get_entity_center(Entity* entity) {
+  return (Vector2){
+      entity->position.x + entity->size.x * 0.5f,
+      entity->position.y + entity->size.x * 0.5f,
+  };
+}
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -121,9 +142,10 @@ int main(void) {
     ClearBackground(Color{25, 25, 31, 0});
 
     update_player(player);
+    WorldFrame world_frame = {0};
 
-    Vector2 mouse_pos_screen = GetMousePosition();
     // Apply DPI scaling to the mouse position
+    Vector2 mouse_pos_screen = GetMousePosition();
     int dpi_scale = GetWindowScaleDPI().x;
     mouse_pos_screen.x = mouse_pos_screen.x * dpi_scale;
     mouse_pos_screen.y = mouse_pos_screen.y * dpi_scale;
@@ -146,7 +168,7 @@ int main(void) {
 
         // draw tile when hovered with mouse
         if (CheckCollisionPointRec(mouse_pos_world, rec)) {
-          DrawRectangleLinesEx(rec, 1.5f, YELLOW);
+          DrawRectangleLinesEx(rec, 0.5f, (Color){255, 255, 255, 100});
         }
         // draw checkerboard
         if (abs(j % 2) == abs(i % 2)) {
@@ -165,10 +187,30 @@ int main(void) {
       }
 
       Rectangle rec = get_entity_rec(entity);
+      Rectangle selection_rec = expand_rectangle(rec, 10);
+
+      // :selecting
+      if (CheckCollisionPointRec(mouse_pos_world, selection_rec)) {
+        world_frame.selected = entity;
+      }
+
+      // :rendering
       switch (entity->arch) {
-        default: {
+        case ARCH_PLAYER: {
           if (CheckCollisionPointRec(mouse_pos_world, rec)) {
             DrawRectangleLinesEx(rec, 1.5f, RED);
+          }
+          DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
+                       WHITE);
+          break;
+        }
+        default: {
+          if (entity == world_frame.selected) {
+            DrawRectangleRec(rec, (Color){255, 255, 255, 50});
+          }
+          if (CheckCollisionPointRec(get_entity_center(player),
+                                     selection_rec)) {
+            DrawRectangleRec(rec, (Color){255, 0, 0, 50});
           }
           DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                        WHITE);
