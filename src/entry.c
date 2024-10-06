@@ -209,13 +209,14 @@ int main(void) {
       Rectangle selection_rec = expand_rectangle(rec, ENTITY_SELECTION_RADIUS);
 
       // :selecting
-      if (CheckCollisionPointRec(mouse_pos_world, selection_rec)) {
-        if (!world_frame.selected)
-          world_frame.selected = entity;
-      }
-      if (entity->arch != ARCH_PLAYER &&
-          CheckCollisionPointRec(get_entity_center(player), selection_rec)) {
-        world_frame.near_player = entity;
+      if (entity->arch != ARCH_PLAYER) {
+        if (CheckCollisionPointRec(mouse_pos_world, selection_rec)) {
+          if (!world_frame.selected)
+            world_frame.selected = entity;
+        }
+        if (CheckCollisionPointRec(get_entity_center(player), selection_rec)) {
+          world_frame.near_player = entity;
+        }
       }
 
       // :rendering
