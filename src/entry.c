@@ -38,6 +38,7 @@ typedef struct Sprite {
 typedef struct Entity {
   bool is_valid;
   bool is_destroyable;
+  bool is_item;
   bool render_sprite;
   SpriteID sprite_id;
   EntityArchetype arch;
@@ -233,8 +234,17 @@ int main(void) {
             tile_color = (Color){255, 0, 0, 50};
           }
           DrawRectangleRec(rec, tile_color);
-          DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
-                       WHITE);
+          if (entity->is_item) {
+            // float
+            float offset = sin(GetTime());
+            Vector2 pos = v2(entity->position.x, entity->position.y + offset);
+            Rectangle rec_transform = {pos.x, pos.y, rec.width, rec.height};
+            DrawTextureV(sprites[entity->sprite_id].texture, pos, WHITE);
+            DrawRectangleLinesEx(rec_transform, 0.5f, GOLD);
+          } else {
+            DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
+                         WHITE);
+          }
           break;
         }
       }
@@ -255,6 +265,7 @@ int main(void) {
               item->sprite_id = SPRITE_wood;
               item->health = 1;
               item->is_destroyable = true;
+              item->is_item = true;
               entity_destroy(world_frame.selected);
             } else if (world_frame.selected->arch == ARCH_ROCK) {
               Entity* item = entity_create();
@@ -265,6 +276,7 @@ int main(void) {
               item->sprite_id = SPRITE_rock_item;
               item->health = 1;
               item->is_destroyable = true;
+              item->is_item = true;
             }
           }
         }
@@ -342,6 +354,7 @@ void init_entities() {
   wood->size = v2(8, 8);
   wood->health = 1;
   wood->is_destroyable = true;
+  wood->is_item = true;
 
   return;
 }
