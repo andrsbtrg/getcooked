@@ -85,6 +85,8 @@ inline Rectangle get_entity_rec(Entity* entity) {
 // :globals
 World* world;
 Sprite sprites[SPRITE_MAX];
+Sound destroy_sound;
+Sound pickup_sound;
 
 int ScreenWidth = 800;
 int ScreenHeight = 600;
@@ -146,6 +148,15 @@ void setup_inventory() {
   world->inventory[ARCH_ROCK_ITEM].amount = 1;
   world->inventory[ARCH_ROCK_ITEM].sprite_id = SPRITE_rock_item;
 }
+
+Vector2 get_mouse_position() {
+  Vector2 mouse_pos_screen = GetMousePosition();
+  // Apply DPI scaling to the mouse position
+  int dpi_scale = GetWindowScaleDPI().x;
+  mouse_pos_screen.x = mouse_pos_screen.x * dpi_scale;
+  mouse_pos_screen.y = mouse_pos_screen.y * dpi_scale;
+  return mouse_pos_screen;
+}
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -153,6 +164,11 @@ int main(void) {
   world = (World*)malloc(sizeof(World));
 
   setup_window();
+
+  InitAudioDevice();
+  destroy_sound = LoadSound("/home/andres/projects/game/assets/61_Hit_03.wav");
+  pickup_sound =
+      LoadSound("/home/andres/projects/game/assets/001_Hover_01.wav");
 
   init_entities();
 
@@ -177,11 +193,7 @@ int main(void) {
     update_player(player);
     WorldFrame world_frame = {0};
 
-    // Apply DPI scaling to the mouse position
-    Vector2 mouse_pos_screen = GetMousePosition();
-    int dpi_scale = GetWindowScaleDPI().x;
-    mouse_pos_screen.x = mouse_pos_screen.x * dpi_scale;
-    mouse_pos_screen.y = mouse_pos_screen.y * dpi_scale;
+    Vector2 mouse_pos_screen = get_mouse_position();
 
     // Now get the world position
     Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, camera);
@@ -211,6 +223,7 @@ int main(void) {
       }
     }
 
+    // :loop all entities
     for (int i = 0; i < MAX_ENTITIES; i++) {
       Entity* entity = &world->entities[i];
       if (NULL == entity) {
@@ -270,6 +283,7 @@ int main(void) {
         Entity* entity_near = world_frame.near_player;
         if (entity_near->is_valid && entity_near->is_item) {
           // TODO: Pickup animation
+          PlaySound(pickup_sound);
 
           world->inventory[entity_near->arch].amount += 1;
           entity_destroy(entity_near);
@@ -281,6 +295,7 @@ int main(void) {
     {
       if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if (world_frame.selected && world_frame.selected->is_destroyable) {
+          PlaySound(destroy_sound);
           world_frame.selected->health--;
           if (world_frame.selected->health <= 0) {
             if (world_frame.selected->arch == ARCH_TREE) {
@@ -329,19 +344,24 @@ int main(void) {
     }
 
     // :dbg ui
-    DrawText(TextFormat("Mouse Screen: [%i , %i]", (int)mouse_pos_screen.x,
-                        (int)mouse_pos_screen.y),
-             400, 25, 20, RED);
-    DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
-                        (int)mouse_pos_world.y),
-             100, 25, 20, BLUE);
+    {
+      DrawText(TextFormat("Mouse Screen: [%i , %i]", (int)mouse_pos_screen.x,
+                          (int)mouse_pos_screen.y),
+               400, 25, 20, RED);
+      DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
+                          (int)mouse_pos_world.y),
+               100, 25, 20, BLUE);
+    }
 
     EndDrawing();
   }
 
   unload_textures();
+  UnloadSound(destroy_sound);
+  UnloadSound(pickup_sound);
 
   free(world);
+  CloseAudioDevice();
   CloseWindow();
 
   return 0;
