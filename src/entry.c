@@ -55,9 +55,16 @@ typedef struct ItemData {
 
 #define MAX_ENTITIES 1024
 
+typedef enum UX_State {
+  UX_nil,
+  UX_inventory,
+  UX_cooking,
+} UX_State;
+
 typedef struct World {
   Entity entities[MAX_ENTITIES];
   ItemData inventory[ARCH_MAX];
+  UX_State ux_state;
 } World;
 
 typedef struct WorldFrame {
@@ -196,8 +203,8 @@ int main(void) {
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
   // Setup world
   world = (World*)malloc(sizeof(World));
-
   setup_window();
+  SetExitKey(0);
 
   InitAudioDevice();
   destroy_sound = LoadSound("/home/andres/projects/game/assets/61_Hit_03.wav");
@@ -225,6 +232,11 @@ int main(void) {
     BeginDrawing();
     ClearBackground(Color{25, 25, 31, 0});
 
+    if (IsKeyPressed(KEY_I)) {
+      world->ux_state = UX_inventory;
+    } else if (IsKeyPressed(KEY_ESCAPE)) {
+      world->ux_state = UX_nil;
+    }
     update_player(player);
     WorldFrame world_frame = {0};
 
@@ -360,8 +372,8 @@ int main(void) {
 
     EndMode2D();
 
-    // :ui
-    {
+    // :ui inventory
+    if (world->ux_state == UX_inventory) {
       int item_pos = 0;
       for (int i = 0; i < ARCH_MAX; i++) {
         if (world->inventory[i].amount == 0)
