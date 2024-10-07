@@ -198,11 +198,19 @@ Vector2 get_mouse_position() {
   mouse_pos_screen.y = mouse_pos_screen.y * dpi_scale;
   return mouse_pos_screen;
 }
+
+World* init_world() {
+  World* world = (World*)malloc(sizeof(World));
+  world->ux_state = UX_nil;
+  return world;
+}
+
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
-  // Setup world
-  world = (World*)malloc(sizeof(World));
+  // :world setup
+  world = init_world();
+
   setup_window();
   SetExitKey(0);
 
@@ -372,8 +380,8 @@ int main(void) {
 
     EndMode2D();
 
-    // :ui inventory
-    if (world->ux_state == UX_inventory) {
+    // :ui quick access
+    if (world->ux_state == UX_nil) {
       int item_pos = 0;
       for (int i = 0; i < ARCH_MAX; i++) {
         if (world->inventory[i].amount == 0)
@@ -381,6 +389,44 @@ int main(void) {
         ItemData inventory_item = world->inventory[i];
         Vector2 texture_pos =
             v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
+        Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
+
+        Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
+
+        Color rec_color = (Color){245, 245, 245, 50};
+        if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
+          float offset = 4 + sin(4 * GetTime());
+          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+          rec_color = GOLD;
+          rec_color.a = 50;
+          // TODO: Fix ui animation
+          // animate_v2_to_target(
+          //     &texture_pos, v2(texture_pos.x, texture_pos.y - 100),
+          //     dt, 1.0f);
+          DrawText(get_arch_name(world->inventory[i].arch), text_pos.x,
+                   text_pos.y - 20, 18, WHITE);
+        }
+        DrawRectangleRec(rec, rec_color);
+        DrawTextureEx(sprites[inventory_item.sprite_id].texture, texture_pos, 0,
+                      5, WHITE);
+        DrawText(TextFormat("[%i]", world->inventory[i].amount), text_pos.x,
+                 text_pos.y + 20, 20, WHITE);
+        item_pos++;
+      }
+    }
+    // :ui inventory
+    else if (world->ux_state == UX_inventory) {
+      int item_pos = 0;
+      int fontsize = 20;
+      const char* text = "Press ESC to exit inventory";
+      int text_width = MeasureText(text, fontsize);
+      DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+      for (int i = 0; i < ARCH_MAX; i++) {
+        if (world->inventory[i].amount == 0)
+          continue;
+        ItemData inventory_item = world->inventory[i];
+        Vector2 texture_pos =
+            v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight / 2.0);
         Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
 
         Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
