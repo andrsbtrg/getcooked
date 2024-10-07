@@ -50,6 +50,7 @@ typedef struct Entity {
 typedef struct ItemData {
   int amount;
   SpriteID sprite_id;
+  EntityArchetype arch;
 } ItemData;
 
 #define MAX_ENTITIES 1024
@@ -80,6 +81,27 @@ inline Rectangle expand_rectangle(Rectangle rec, float offset) {
 inline Rectangle get_entity_rec(Entity* entity) {
   return (Rectangle){entity->position.x, entity->position.y, entity->size.x,
                      entity->size.y};
+}
+
+const char* get_arch_name(EntityArchetype arch) {
+  switch (arch) {
+    case ARCH_NIL:
+      return "_";
+    case ARCH_PLAYER:
+      return "Player";
+    case ARCH_ROCK:
+      return "Rock";
+    case ARCH_TREE:
+      return "Tree";
+    case ARCH_ROCK_ITEM:
+      return "Rock";
+    case ARCH_WOOD_ITEM:
+      return "Pine Wood";
+    case ARCH_MAX:
+      return "?";
+    default:
+      return "";
+  };
 }
 
 // :globals
@@ -141,12 +163,24 @@ void entity_destroy(Entity* entity) {
   entity = {0};
 }
 
-void setup_inventory() {
-  world->inventory[ARCH_WOOD_ITEM].amount = 5;
+inline void setup_inventory() {
+  world->inventory[ARCH_WOOD_ITEM].amount = 0;
   world->inventory[ARCH_WOOD_ITEM].sprite_id = SPRITE_wood;
+  world->inventory[ARCH_WOOD_ITEM].arch = ARCH_WOOD_ITEM;
 
-  world->inventory[ARCH_ROCK_ITEM].amount = 1;
+  world->inventory[ARCH_ROCK_ITEM].amount = 0;
   world->inventory[ARCH_ROCK_ITEM].sprite_id = SPRITE_rock_item;
+  world->inventory[ARCH_ROCK_ITEM].arch = ARCH_ROCK_ITEM;
+}
+
+void load_sprites() {
+  load_sprite("/home/andres/projects/game/assets/missing.png", SPRITE_nil);
+  load_sprite("/home/andres/projects/game/assets/player.png", SPRITE_player);
+  load_sprite("/home/andres/projects/game/assets/tree.png", SPRITE_tree);
+  load_sprite("/home/andres/projects/game/assets/rock.png", SPRITE_rock);
+  load_sprite("/home/andres/projects/game/assets/wood.png", SPRITE_wood);
+  load_sprite("/home/andres/projects/game/assets/rock_item.png",
+              SPRITE_rock_item);
 }
 
 Vector2 get_mouse_position() {
@@ -170,6 +204,7 @@ int main(void) {
   pickup_sound =
       LoadSound("/home/andres/projects/game/assets/001_Hover_01.wav");
 
+  load_sprites();
   init_entities();
 
   Entity* player = &world->entities[0];
@@ -332,25 +367,42 @@ int main(void) {
         if (world->inventory[i].amount == 0)
           continue;
         ItemData inventory_item = world->inventory[i];
-        Vector2 pos =
+        Vector2 texture_pos =
             v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
-        DrawRectangleV(pos, v2(40, 40), (Color){245, 245, 245, 50});
-        DrawTextureEx(sprites[inventory_item.sprite_id].texture, pos, 0, 5,
-                      WHITE);
-        DrawText(TextFormat("[%i]", world->inventory[i].amount), pos.x,
-                 pos.y + 20, 20, WHITE);
+        Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
+
+        Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
+
+        Color rec_color = (Color){245, 245, 245, 50};
+        if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
+          float offset = 4 + sin(4 * GetTime());
+          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+          rec_color = GOLD;
+          rec_color.a = 50;
+          // TODO: Fix ui animation
+          // animate_v2_to_target(
+          //     &texture_pos, v2(texture_pos.x, texture_pos.y - 100),
+          //     dt, 1.0f);
+          DrawText(get_arch_name(world->inventory[i].arch), text_pos.x,
+                   text_pos.y - 20, 18, WHITE);
+        }
+        DrawRectangleRec(rec, rec_color);
+        DrawTextureEx(sprites[inventory_item.sprite_id].texture, texture_pos, 0,
+                      5, WHITE);
+        DrawText(TextFormat("[%i]", world->inventory[i].amount), text_pos.x,
+                 text_pos.y + 20, 20, WHITE);
         item_pos++;
       }
     }
 
     // :dbg ui
     {
-      DrawText(TextFormat("Mouse Screen: [%i , %i]", (int)mouse_pos_screen.x,
-                          (int)mouse_pos_screen.y),
-               400, 25, 20, RED);
-      DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
-                          (int)mouse_pos_world.y),
-               100, 25, 20, BLUE);
+      // DrawText(TextFormat("Mouse Screen: [%i , %i]", (int)mouse_pos_screen.x,
+      //                     (int)mouse_pos_screen.y),
+      //          400, 25, 20, RED);
+      // DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
+      //                     (int)mouse_pos_world.y),
+      //          100, 25, 20, BLUE);
     }
 
     EndDrawing();
@@ -371,13 +423,6 @@ int main(void) {
  * Create entities
  */
 void init_entities() {
-  load_sprite("/home/andres/projects/game/assets/player.png", SPRITE_player);
-  load_sprite("/home/andres/projects/game/assets/tree.png", SPRITE_tree);
-  load_sprite("/home/andres/projects/game/assets/rock.png", SPRITE_rock);
-  load_sprite("/home/andres/projects/game/assets/wood.png", SPRITE_wood);
-  load_sprite("/home/andres/projects/game/assets/rock_item.png",
-              SPRITE_rock_item);
-
   int rock_health = 3;
   int tree_health = 3;
 
