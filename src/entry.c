@@ -98,13 +98,14 @@ typedef enum UX_State {
   UX_nil,
   UX_inventory,
   UX_crafting,
+  UX_cooking,
   UX_placing,
 } UX_State;
 
 #define MAX_ENTITIES 1024
 typedef struct World {
   Entity entities[MAX_ENTITIES];
-  ItemData inventory[ARCH_MAX];
+  ItemData inventory_items[ARCH_MAX];
   UX_State ux_state;
   CraftingID placing;
 } World;
@@ -313,7 +314,7 @@ Entity* create_item_drop(Entity* destroyed) {
 
 inline void setup_inventory() {
   for (int i = 0; i < ARCH_MAX; i++) {
-    ItemData* idata = &world->inventory[i];
+    ItemData* idata = &world->inventory_items[i];
     EntityArchetype arch = (EntityArchetype)i;
     idata->amount = 0;
     idata->arch = arch;
@@ -360,6 +361,17 @@ World* init_world() {
   World* world = (World*)malloc(sizeof(World));
   world->ux_state = UX_nil;
   return world;
+}
+
+bool is_cooking_system(EntityArchetype arch) {
+  switch (arch) {
+    case ARCH_OVEN:
+    case ARCH_STOCK_POT:
+    case ARCH_GRILL:
+      return true;
+    default:
+      return false;
+  }
 }
 
 int main(void) {
@@ -493,15 +505,25 @@ int main(void) {
 
     // :ux_state detection
     {
+      // UX states like craft and cook depend on being close to certain entity
       if (world_frame.near_player) {
-        if (world_frame.near_player->arch == ARCH_CRAFT_TABLE) {
-          if (world->ux_state != UX_placing) {
+        EntityArchetype arch = world_frame.near_player->arch;
+        if (world->ux_state != UX_placing) {
+          if (arch == ARCH_CRAFT_TABLE) {
             world->ux_state = UX_crafting;
+          } else if (is_cooking_system(arch)) {
+            world->ux_state = UX_cooking;
           }
         }
-      } else if (!world_frame.near_player && world->ux_state == UX_crafting) {
+      }
+      // closes UX states that depend on being close to an entity
+      // if we are not close to any entity
+      else if (world->ux_state == UX_crafting ||
+               world->ux_state == UX_cooking) {
         world->ux_state = UX_nil;
       }
+
+      // handle open and close inventory
       if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) {
         world->ux_state = UX_inventory;
       } else if (IsKeyPressed(KEY_ESCAPE)) {
@@ -517,7 +539,7 @@ int main(void) {
           // TODO: Pickup animation
           PlaySound(pickup_sound);
 
-          world->inventory[entity_near->arch].amount += 1;
+          world->inventory_items[entity_near->arch].amount += 1;
           entity_destroy(entity_near);
         }
       }
@@ -545,9 +567,9 @@ int main(void) {
     if (world->ux_state == UX_nil) {
       int item_pos = 0;
       for (int i = 0; i < ARCH_MAX; i++) {
-        if (world->inventory[i].amount == 0)
+        if (world->inventory_items[i].amount == 0)
           continue;
-        ItemData inventory_item = world->inventory[i];
+        ItemData inventory_item = world->inventory_items[i];
         Vector2 texture_pos =
             v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
         Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
@@ -560,14 +582,14 @@ int main(void) {
           texture_pos = v2(texture_pos.x, texture_pos.y - offset);
           rec_color = GOLD;
           rec_color.a = 50;
-          DrawText(get_arch_name(world->inventory[i].arch), text_pos.x,
+          DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
                    text_pos.y - 20, 18, WHITE);
         }
         DrawRectangleRec(rec, rec_color);
         DrawTextureEx(sprites[inventory_item.sprite_id].texture, texture_pos, 0,
                       5, WHITE);
-        DrawText(TextFormat("[%i]", world->inventory[i].amount), text_pos.x,
-                 text_pos.y + 20, 20, WHITE);
+        DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
+                 text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
       }
     }
@@ -579,9 +601,9 @@ int main(void) {
       int text_width = MeasureText(text, fontsize);
       DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
       for (int i = 0; i < ARCH_MAX; i++) {
-        if (world->inventory[i].amount == 0)
+        if (world->inventory_items[i].amount == 0)
           continue;
-        ItemData inventory_item = world->inventory[i];
+        ItemData inventory_item = world->inventory_items[i];
         Vector2 texture_pos = v2(-50 + ScreenWidth / 2.0 + 50 * item_pos,
                                  ScreenHeight / 2.0 - 40);
         Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
@@ -598,14 +620,14 @@ int main(void) {
           // animate_v2_to_target(
           //     &texture_pos, v2(texture_pos.x, texture_pos.y - 100),
           //     dt, 1.0f);
-          DrawText(get_arch_name(world->inventory[i].arch), text_pos.x,
+          DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
                    text_pos.y - 20, 18, WHITE);
         }
         DrawRectangleRec(rec, rec_color);
         DrawTextureEx(sprites[inventory_item.sprite_id].texture, texture_pos, 0,
                       5, WHITE);
-        DrawText(TextFormat("[%i]", world->inventory[i].amount), text_pos.x,
-                 text_pos.y + 20, 20, WHITE);
+        DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
+                 text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
       }
     } else if (world->ux_state == UX_crafting) {
@@ -691,6 +713,12 @@ int main(void) {
           world->ux_state = UX_nil;
         }
       }
+    } else if (world->ux_state == UX_cooking) {
+      // :ui placing
+      const char* text = "Cooking...";
+      int fontsize = 20;
+      int text_width = MeasureText(text, fontsize);
+      DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
     }
 
     // :dbg ui
