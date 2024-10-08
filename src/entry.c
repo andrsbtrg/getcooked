@@ -9,20 +9,24 @@
 #include "raymath.h"
 
 typedef enum EntityArchetype {
-  ARCH_NIL = 0,
-  ARCH_PLAYER = 1,
-  ARCH_ROCK = 2,
-  ARCH_TREE = 3,
+  ARCH_NIL,
+  ARCH_PLAYER,
+  ARCH_ROCK,
+  ARCH_TREE,
 
-  ARCH_BUSH = 4,
-  ARCH_PUMPKIN = 5,
-  ARCH_PLANT = 6,
-  ARCH_SOIL = 7,
+  ARCH_TOMATO_PLANT,
+  ARCH_PUMPKIN_PLANT,
+  ARCH_CORN_PLANT,
+  ARCH_PLANT,
+  ARCH_SOIL,
 
-  ARCH_ROCK_ITEM = 8,
-  ARCH_WOOD_ITEM = 9,
+  ARCH_ROCK_ITEM,
+  ARCH_WOOD_ITEM,
+  ARCH_PUMPKIN_ITEM,
+  ARCH_TOMATO_ITEM,
+  ARCH_CORN_ITEM,
 
-  ARCH_KITCHEN = 10,
+  ARCH_KITCHEN,
 
   ARCH_MAX,
 } EntityArchetype;
@@ -34,11 +38,13 @@ typedef enum SpriteID {
   SPRITE_tree,
   SPRITE_wood,
   SPRITE_rock_item,
-  SPRITE_bush,
+  SPRITE_tomato,
   SPRITE_pumpkin,
   SPRITE_plant,
   SPRITE_soil,
   SPRITE_kitchen,
+  SPRITE_pumpkin_item,
+  SPRITE_tomato_item,
   SPRITE_MAX
 } SpriteID;
 
@@ -116,6 +122,10 @@ const char* get_arch_name(EntityArchetype arch) {
       return "Rock";
     case ARCH_WOOD_ITEM:
       return "Pine Wood";
+    case ARCH_TOMATO_ITEM:
+      return "Tomato";
+    case ARCH_PUMPKIN_ITEM:
+      return "Pumpkin";
     case ARCH_MAX:
       return "?";
     default:
@@ -187,14 +197,90 @@ void entity_destroy(Entity* entity) {
   entity = {0};
 }
 
-inline void setup_inventory() {
-  world->inventory[ARCH_WOOD_ITEM].amount = 0;
-  world->inventory[ARCH_WOOD_ITEM].sprite_id = SPRITE_wood;
-  world->inventory[ARCH_WOOD_ITEM].arch = ARCH_WOOD_ITEM;
+EntityArchetype get_drop_from(Entity* destroyed) {
+  switch (destroyed->arch) {
+    case ARCH_ROCK:
+      return ARCH_ROCK_ITEM;
+    case ARCH_TREE:
+      return ARCH_WOOD_ITEM;
+    case ARCH_TOMATO_PLANT:
+      return ARCH_TOMATO_ITEM;
+    case ARCH_PUMPKIN_PLANT:
+      return ARCH_PUMPKIN_ITEM;
+    case ARCH_CORN_PLANT:
+      return ARCH_CORN_ITEM;
+      // makes it so that we can move the plant
+    case ARCH_PLANT:
+      return ARCH_PLANT;
+      // destroying soil returns nothing
+    case ARCH_SOIL:
+      return ARCH_NIL;
+    default:
+      return ARCH_NIL;
+  }
+}
 
-  world->inventory[ARCH_ROCK_ITEM].amount = 0;
-  world->inventory[ARCH_ROCK_ITEM].sprite_id = SPRITE_rock_item;
-  world->inventory[ARCH_ROCK_ITEM].arch = ARCH_ROCK_ITEM;
+SpriteID get_sprite_from_arch(EntityArchetype arch) {
+  switch (arch) {
+    case ARCH_NIL:
+      return SPRITE_nil;
+    case ARCH_PLAYER:
+      return SPRITE_player;
+    case ARCH_ROCK:
+      return SPRITE_rock;
+    case ARCH_TREE:
+      return SPRITE_tree;
+    case ARCH_TOMATO_PLANT:
+      return SPRITE_tomato;
+    case ARCH_PUMPKIN_PLANT:
+      return SPRITE_pumpkin;
+    case ARCH_CORN_PLANT:
+      return SPRITE_nil;
+    case ARCH_PLANT:
+      return SPRITE_plant;
+    case ARCH_SOIL:
+      return SPRITE_soil;
+    case ARCH_ROCK_ITEM:
+      return SPRITE_rock_item;
+    case ARCH_WOOD_ITEM:
+      return SPRITE_wood;
+    case ARCH_PUMPKIN_ITEM:
+      return SPRITE_pumpkin_item;
+    case ARCH_TOMATO_ITEM:
+      return SPRITE_tomato_item;
+    case ARCH_CORN_ITEM:
+      return SPRITE_nil;
+    case ARCH_KITCHEN:
+      return SPRITE_kitchen;
+    case ARCH_MAX:
+      break;
+  }
+  return SPRITE_nil;
+}
+
+Entity* create_item_drop(Entity* destroyed) {
+  EntityArchetype arch_drop = get_drop_from(destroyed);
+  SpriteID sprite_id = get_sprite_from_arch(arch_drop);
+
+  Entity* item = entity_create();
+  Vector2 destroyed_pos = destroyed->position;
+  item->position = v2(destroyed_pos.x, destroyed_pos.y + TILE_SIZE);
+  item->arch = arch_drop;
+  item->sprite_id = sprite_id;
+  item->size = get_sprite_size(SPRITE_wood);
+  item->is_destroyable = false;
+  item->is_item = true;
+  return item;
+}
+
+inline void setup_inventory() {
+  for (int i = 0; i < ARCH_MAX; i++) {
+    ItemData* idata = &world->inventory[i];
+    EntityArchetype arch = (EntityArchetype)i;
+    idata->amount = 0;
+    idata->arch = arch;
+    idata->sprite_id = get_sprite_from_arch(arch);
+  }
 }
 
 void load_sprites() {
@@ -206,11 +292,16 @@ void load_sprites() {
   load_sprite("/home/andres/projects/game/assets/rock_item.png",
               SPRITE_rock_item);
 
-  load_sprite("/home/andres/projects/game/assets/bush.png", SPRITE_bush);
+  load_sprite("/home/andres/projects/game/assets/bush.png", SPRITE_tomato);
   load_sprite("/home/andres/projects/game/assets/pumpkin.png", SPRITE_pumpkin);
   load_sprite("/home/andres/projects/game/assets/plant.png", SPRITE_plant);
   load_sprite("/home/andres/projects/game/assets/soil.png", SPRITE_soil);
   load_sprite("/home/andres/projects/game/assets/kitchen.png", SPRITE_kitchen);
+  load_sprite("/home/andres/projects/game/assets/tomato_item.png",
+              SPRITE_tomato_item);
+
+  load_sprite("/home/andres/projects/game/assets/pumpkin_item.png",
+              SPRITE_pumpkin_item);
 }
 
 Vector2 get_mouse_position() {
@@ -263,11 +354,6 @@ int main(void) {
     BeginDrawing();
     ClearBackground(Color{25, 25, 31, 0});
 
-    if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) {
-      world->ux_state = UX_inventory;
-    } else if (IsKeyPressed(KEY_ESCAPE)) {
-      world->ux_state = UX_nil;
-    }
     update_player(player);
     WorldFrame world_frame = {0};
 
@@ -355,6 +441,21 @@ int main(void) {
       }
     }
 
+    // :ux_state detection
+    {
+      if (world_frame.near_player &&
+          world_frame.near_player->arch == ARCH_KITCHEN) {
+        world->ux_state = UX_cooking;
+      } else if (!world_frame.near_player && world->ux_state == UX_cooking) {
+        world->ux_state = UX_nil;
+      }
+      if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) {
+        world->ux_state = UX_inventory;
+      } else if (IsKeyPressed(KEY_ESCAPE)) {
+        world->ux_state = UX_nil;
+      }
+    }
+
     // :pickup items
     {
       if (world_frame.near_player) {
@@ -374,27 +475,10 @@ int main(void) {
       if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if (world_frame.selected && world_frame.selected->is_destroyable) {
           PlaySound(destroy_sound);
+          // :destroy
           world_frame.selected->health--;
           if (world_frame.selected->health <= 0) {
-            if (world_frame.selected->arch == ARCH_TREE) {
-              Entity* item = entity_create();
-              Vector2 destroyed = world_frame.selected->position;
-              item->position = v2(destroyed.x, destroyed.y + TILE_SIZE);
-              item->arch = ARCH_WOOD_ITEM;
-              item->sprite_id = SPRITE_wood;
-              item->size = get_sprite_size(SPRITE_wood);
-              item->is_destroyable = false;
-              item->is_item = true;
-            } else if (world_frame.selected->arch == ARCH_ROCK) {
-              Entity* item = entity_create();
-              Vector2 destroyed = world_frame.selected->position;
-              item->position = v2(destroyed.x, destroyed.y);
-              item->arch = ARCH_ROCK_ITEM;
-              item->sprite_id = SPRITE_rock_item;
-              item->size = get_sprite_size(SPRITE_rock_item);
-              item->is_destroyable = false;
-              item->is_item = true;
-            }
+            Entity* item = create_item_drop(world_frame.selected);
             entity_destroy(world_frame.selected);
           }
         }
@@ -470,6 +554,34 @@ int main(void) {
                  text_pos.y + 20, 20, WHITE);
         item_pos++;
       }
+    } else if (world->ux_state == UX_cooking) {
+      // :ui cooking
+      const char* text = "Cooking...";
+      int fontsize = 20;
+      int text_width = MeasureText(text, fontsize);
+      DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+
+      float icon_size = 40.0f;
+      int ingredient_MAX = 3;
+      for (int i = 0; i < ingredient_MAX; i++) {
+        Vector2 texture_pos =
+            v2(-50 + ScreenWidth / 2.0 + 50 * i, ScreenHeight - 45);
+        Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
+
+        Rectangle rec =
+            (Rectangle){texture_pos.x, texture_pos.y, icon_size, icon_size};
+
+        Color rec_color = (Color){245, 245, 245, 50};
+        if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
+          float offset = 4 + sin(4 * GetTime());
+          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+          rec_color = GOLD;
+          rec_color.a = 50;
+          DrawText(get_arch_name(world->inventory[i].arch), text_pos.x,
+                   text_pos.y - 20, 18, WHITE);
+        }
+        DrawRectangleRec(rec, rec_color);
+      }
     }
 
     // :dbg ui
@@ -503,6 +615,7 @@ int main(void) {
 void init_entities() {
   int rock_health = 3;
   int tree_health = 3;
+  int plant_health = 1;
 
   Entity* player = entity_create();
   player->arch = ARCH_PLAYER;
@@ -518,7 +631,7 @@ void init_entities() {
   kitchen->sprite_id = SPRITE_kitchen;
   kitchen->size = get_sprite_size(SPRITE_kitchen);
   kitchen->is_destroyable = false;
-  kitchen->health = 1;
+  kitchen->health = 100;
 
   for (int i = 0; i < 10; i++) {
     int x = GetRandomValue(-100, 100);
@@ -532,7 +645,7 @@ void init_entities() {
     rock->is_destroyable = true;
   }
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 5; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
     Entity* tree = entity_create();
@@ -544,15 +657,27 @@ void init_entities() {
     tree->is_destroyable = true;
   }
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 7; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
     Entity* bush = entity_create();
     bush->position = round_pos_to_tile(x, y, TILE_SIZE);
-    bush->arch = ARCH_BUSH;
-    bush->sprite_id = SPRITE_bush;
-    bush->size = get_sprite_size(SPRITE_bush);
-    bush->health = tree_health;
+    bush->arch = ARCH_TOMATO_PLANT;
+    bush->sprite_id = SPRITE_tomato;
+    bush->size = get_sprite_size(SPRITE_tomato);
+    bush->health = plant_health;
+    bush->is_destroyable = true;
+  }
+
+  for (int i = 0; i < 5; i++) {
+    int x = GetRandomValue(-100, 100);
+    int y = GetRandomValue(-100, 100);
+    Entity* bush = entity_create();
+    bush->position = round_pos_to_tile(x, y, TILE_SIZE);
+    bush->arch = ARCH_PUMPKIN_PLANT;
+    bush->sprite_id = get_sprite_from_arch(ARCH_PUMPKIN_PLANT);
+    bush->size = get_sprite_size(SPRITE_tomato);
+    bush->health = plant_health;
     bush->is_destroyable = true;
   }
   Entity* wood = entity_create();
