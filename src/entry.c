@@ -26,7 +26,10 @@ typedef enum EntityArchetype {
   ARCH_TOMATO_ITEM,
   ARCH_CORN_ITEM,
 
-  ARCH_KITCHEN,
+  ARCH_CRAFT_TABLE,
+  ARCH_STOCK_POT,
+  ARCH_OVEN,
+  ARCH_GRILL,
 
   ARCH_MAX,
 } EntityArchetype;
@@ -42,9 +45,12 @@ typedef enum SpriteID {
   SPRITE_pumpkin,
   SPRITE_plant,
   SPRITE_soil,
-  SPRITE_kitchen,
+  SPRITE_table,
   SPRITE_pumpkin_item,
   SPRITE_tomato_item,
+  SPRITE_stock_pot,
+  SPRITE_oven,
+  SPRITE_grill,
   SPRITE_MAX
 } SpriteID;
 
@@ -71,18 +77,36 @@ typedef struct ItemData {
   EntityArchetype arch;
 } ItemData;
 
-#define MAX_ENTITIES 1024
+/*
+ * A Crafting ID is something the player can craft while at the
+ * crafting table
+ */
+typedef enum CraftingID {
+  CRAFTING_nil,
+  CRAFTING_pot,
+  CRAFTING_oven,
+  CRAFTING_grill,
+  CRAFTING_MAX,
+} CraftingID;
+
+typedef struct CraftingData {
+  SpriteID sprite_id;
+  EntityArchetype arch;
+} CraftingData;
 
 typedef enum UX_State {
   UX_nil,
   UX_inventory,
-  UX_cooking,
+  UX_crafting,
+  UX_placing,
 } UX_State;
 
+#define MAX_ENTITIES 1024
 typedef struct World {
   Entity entities[MAX_ENTITIES];
   ItemData inventory[ARCH_MAX];
   UX_State ux_state;
+  CraftingID placing;
 } World;
 
 typedef struct WorldFrame {
@@ -128,6 +152,12 @@ const char* get_arch_name(EntityArchetype arch) {
       return "Pumpkin";
     case ARCH_MAX:
       return "?";
+    case ARCH_OVEN:
+      return "Oven";
+    case ARCH_STOCK_POT:
+      return "Stock Pot";
+    case ARCH_GRILL:
+      return "Grill";
     default:
       return "";
   };
@@ -136,6 +166,7 @@ const char* get_arch_name(EntityArchetype arch) {
 // :globals
 World* world;
 Sprite sprites[SPRITE_MAX];
+CraftingData crafts[CRAFTING_MAX];
 Sound destroy_sound;
 Sound pickup_sound;
 
@@ -250,9 +281,16 @@ SpriteID get_sprite_from_arch(EntityArchetype arch) {
       return SPRITE_tomato_item;
     case ARCH_CORN_ITEM:
       return SPRITE_nil;
-    case ARCH_KITCHEN:
-      return SPRITE_kitchen;
+    case ARCH_CRAFT_TABLE:
+      return SPRITE_table;
     case ARCH_MAX:
+      break;
+    case ARCH_STOCK_POT:
+      return SPRITE_stock_pot;
+    case ARCH_OVEN:
+      return SPRITE_oven;
+    case ARCH_GRILL:
+      return SPRITE_grill;
       break;
   }
   return SPRITE_nil;
@@ -296,12 +334,17 @@ void load_sprites() {
   load_sprite("/home/andres/projects/game/assets/pumpkin.png", SPRITE_pumpkin);
   load_sprite("/home/andres/projects/game/assets/plant.png", SPRITE_plant);
   load_sprite("/home/andres/projects/game/assets/soil.png", SPRITE_soil);
-  load_sprite("/home/andres/projects/game/assets/kitchen.png", SPRITE_kitchen);
+  load_sprite("/home/andres/projects/game/assets/kitchen.png", SPRITE_table);
   load_sprite("/home/andres/projects/game/assets/tomato_item.png",
               SPRITE_tomato_item);
 
   load_sprite("/home/andres/projects/game/assets/pumpkin_item.png",
               SPRITE_pumpkin_item);
+
+  load_sprite("/home/andres/projects/game/assets/stock_pot.png",
+              SPRITE_stock_pot);
+  load_sprite("/home/andres/projects/game/assets/grill.png", SPRITE_grill);
+  load_sprite("/home/andres/projects/game/assets/oven.png", SPRITE_oven);
 }
 
 Vector2 get_mouse_position() {
@@ -341,6 +384,13 @@ int main(void) {
 
   // :inventory setup
   setup_inventory();
+  // :crafting data setup
+  {
+    crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
+                            .arch = ARCH_STOCK_POT};
+    crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven, .arch = ARCH_OVEN};
+    crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill, .arch = ARCH_GRILL};
+  }
 
   Camera2D camera = {0};
   setup_camera(&camera);
@@ -443,10 +493,13 @@ int main(void) {
 
     // :ux_state detection
     {
-      if (world_frame.near_player &&
-          world_frame.near_player->arch == ARCH_KITCHEN) {
-        world->ux_state = UX_cooking;
-      } else if (!world_frame.near_player && world->ux_state == UX_cooking) {
+      if (world_frame.near_player) {
+        if (world_frame.near_player->arch == ARCH_CRAFT_TABLE) {
+          if (world->ux_state != UX_placing) {
+            world->ux_state = UX_crafting;
+          }
+        }
+      } else if (!world_frame.near_player && world->ux_state == UX_crafting) {
         world->ux_state = UX_nil;
       }
       if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) {
@@ -554,16 +607,17 @@ int main(void) {
                  text_pos.y + 20, 20, WHITE);
         item_pos++;
       }
-    } else if (world->ux_state == UX_cooking) {
-      // :ui cooking
-      const char* text = "Cooking...";
+    } else if (world->ux_state == UX_crafting) {
+      // :ui crafting
+      const char* text = "Crafting...";
       int fontsize = 20;
       int text_width = MeasureText(text, fontsize);
       DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
 
       float icon_size = 40.0f;
-      int ingredient_MAX = 3;
-      for (int i = 0; i < ingredient_MAX; i++) {
+      for (int i = 1; i < CRAFTING_MAX; i++) {
+        CraftingID craft_id = (CraftingID)i;
+        CraftingData craft = crafts[craft_id];
         Vector2 texture_pos =
             v2(-50 + ScreenWidth / 2.0 + 50 * i, ScreenHeight - 45);
         Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
@@ -577,10 +631,41 @@ int main(void) {
           texture_pos = v2(texture_pos.x, texture_pos.y - offset);
           rec_color = GOLD;
           rec_color.a = 50;
-          DrawText(get_arch_name(world->inventory[i].arch), text_pos.x,
-                   text_pos.y - 20, 18, WHITE);
+          DrawText(get_arch_name(craft.arch), text_pos.x, text_pos.y - 20, 18,
+                   WHITE);
         }
         DrawRectangleRec(rec, rec_color);
+        Texture2D texture = sprites[craft.sprite_id].texture;
+        DrawTexturePro(
+            texture,
+            (Rectangle){0, 0, (float)texture.width, (float)texture.height},
+            {texture_pos.x, texture_pos.y, rec.width, rec.height}, v2(0, 0), 0,
+            WHITE);
+        if (CheckCollisionPointRec(mouse_pos_screen, rec) &&
+            IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+          world->ux_state = UX_placing;
+          // TODO: Check if the player has the resources
+          world->placing = craft_id;
+        }
+      }
+    } else if (world->ux_state == UX_placing) {
+      // :ui placing
+      const char* text = "Placing...\nPress ESC to exit Placing mode";
+      int fontsize = 20;
+      int text_width = MeasureText(text, fontsize);
+      DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+
+      if (world->placing != CRAFTING_nil) {
+        CraftingData data = crafts[world->placing];
+        Texture texture = sprites[data.sprite_id].texture;
+
+        float width = 50;
+        float height = 50;
+        DrawTexturePro(
+            texture,
+            (Rectangle){0, 0, (float)texture.width, (float)texture.height},
+            {mouse_pos_screen.x, mouse_pos_screen.y, width, height},
+            v2(width / 2, height / 2), 0, WHITE);
       }
     }
 
@@ -626,10 +711,10 @@ void init_entities() {
   player->is_destroyable = false;
 
   Entity* kitchen = entity_create();
-  kitchen->arch = ARCH_KITCHEN;
+  kitchen->arch = ARCH_CRAFT_TABLE;
   kitchen->position = v2(10, 0);
-  kitchen->sprite_id = SPRITE_kitchen;
-  kitchen->size = get_sprite_size(SPRITE_kitchen);
+  kitchen->sprite_id = SPRITE_table;
+  kitchen->size = get_sprite_size(SPRITE_table);
   kitchen->is_destroyable = false;
   kitchen->health = 100;
 
