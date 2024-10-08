@@ -525,7 +525,8 @@ int main(void) {
 
     // :clicking
     {
-      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+      if (world->ux_state == UX_nil &&
+          IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if (world_frame.selected && world_frame.selected->is_destroyable) {
           PlaySound(destroy_sound);
           // :destroy
