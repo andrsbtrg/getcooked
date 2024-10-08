@@ -660,13 +660,36 @@ int main(void) {
         CraftingData data = crafts[world->placing];
         Texture texture = sprites[data.sprite_id].texture;
 
-        float width = 50;
-        float height = 50;
+        int world_factor = camera.zoom / GetWindowScaleDPI().x;
+
+        // the tile size on this case is on Screen space size
+        float tile_size = TILE_SIZE * world_factor;
+        Vector2 pos = round_pos_to_tile(mouse_pos_screen.x, mouse_pos_screen.y,
+                                        tile_size);
+
+        float width = texture.width * world_factor;
+        float height = texture.height * world_factor;
         DrawTexturePro(
             texture,
             (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-            {mouse_pos_screen.x, mouse_pos_screen.y, width, height},
-            v2(width / 2, height / 2), 0, WHITE);
+            {pos.x, pos.y, width, height}, v2(tile_size / 2, tile_size / 2), 0,
+            (Color){255, 255, 255, 124});
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+          // place craft
+          // FIXME: this doesn't clear all the entities struct previous data
+          Entity* en = entity_create();
+          en->arch = data.arch;
+          en->position = round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
+                                           TILE_SIZE);
+          en->sprite_id = data.sprite_id;
+          en->size = get_sprite_size(data.sprite_id);
+          en->is_destroyable = false;
+          en->is_item = false;
+          en->health = 100;
+          // exit craft mode
+          world->ux_state = UX_nil;
+        }
       }
     }
 
