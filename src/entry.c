@@ -14,8 +14,15 @@ typedef enum EntityArchetype {
   ARCH_ROCK = 2,
   ARCH_TREE = 3,
 
-  ARCH_ROCK_ITEM = 4,
-  ARCH_WOOD_ITEM = 5,
+  ARCH_BUSH = 4,
+  ARCH_PUMPKIN = 5,
+  ARCH_PLANT = 6,
+  ARCH_SOIL = 7,
+
+  ARCH_ROCK_ITEM = 8,
+  ARCH_WOOD_ITEM = 9,
+
+  ARCH_KITCHEN = 10,
 
   ARCH_MAX,
 } EntityArchetype;
@@ -27,6 +34,11 @@ typedef enum SpriteID {
   SPRITE_tree,
   SPRITE_wood,
   SPRITE_rock_item,
+  SPRITE_bush,
+  SPRITE_pumpkin,
+  SPRITE_plant,
+  SPRITE_soil,
+  SPRITE_kitchen,
   SPRITE_MAX
 } SpriteID;
 
@@ -158,6 +170,11 @@ Vector2 round_pos_to_tile(int x, int y, float tile_size) {
                    (int)(y / tile_size) * tile_size};
 }
 
+Vector2 get_sprite_size(SpriteID id) {
+  Sprite sprite = sprites[id];
+  return v2(sprite.texture.width, sprite.texture.height);
+}
+
 Vector2 get_entity_center(Entity* entity) {
   return (Vector2){
       entity->position.x + entity->size.x * 0.5f,
@@ -188,6 +205,12 @@ void load_sprites() {
   load_sprite("/home/andres/projects/game/assets/wood.png", SPRITE_wood);
   load_sprite("/home/andres/projects/game/assets/rock_item.png",
               SPRITE_rock_item);
+
+  load_sprite("/home/andres/projects/game/assets/bush.png", SPRITE_bush);
+  load_sprite("/home/andres/projects/game/assets/pumpkin.png", SPRITE_pumpkin);
+  load_sprite("/home/andres/projects/game/assets/plant.png", SPRITE_plant);
+  load_sprite("/home/andres/projects/game/assets/soil.png", SPRITE_soil);
+  load_sprite("/home/andres/projects/game/assets/kitchen.png", SPRITE_kitchen);
 }
 
 Vector2 get_mouse_position() {
@@ -240,7 +263,7 @@ int main(void) {
     BeginDrawing();
     ClearBackground(Color{25, 25, 31, 0});
 
-    if (IsKeyPressed(KEY_I)) {
+    if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) {
       world->ux_state = UX_inventory;
     } else if (IsKeyPressed(KEY_ESCAPE)) {
       world->ux_state = UX_nil;
@@ -358,8 +381,8 @@ int main(void) {
               Vector2 destroyed = world_frame.selected->position;
               item->position = v2(destroyed.x, destroyed.y + TILE_SIZE);
               item->arch = ARCH_WOOD_ITEM;
-              item->size = v2(8, 8);
               item->sprite_id = SPRITE_wood;
+              item->size = get_sprite_size(SPRITE_wood);
               item->is_destroyable = false;
               item->is_item = true;
             } else if (world_frame.selected->arch == ARCH_ROCK) {
@@ -367,8 +390,8 @@ int main(void) {
               Vector2 destroyed = world_frame.selected->position;
               item->position = v2(destroyed.x, destroyed.y);
               item->arch = ARCH_ROCK_ITEM;
-              item->size = v2(8, 8);
               item->sprite_id = SPRITE_rock_item;
+              item->size = get_sprite_size(SPRITE_rock_item);
               item->is_destroyable = false;
               item->is_item = true;
             }
@@ -399,10 +422,6 @@ int main(void) {
           texture_pos = v2(texture_pos.x, texture_pos.y - offset);
           rec_color = GOLD;
           rec_color.a = 50;
-          // TODO: Fix ui animation
-          // animate_v2_to_target(
-          //     &texture_pos, v2(texture_pos.x, texture_pos.y - 100),
-          //     dt, 1.0f);
           DrawText(get_arch_name(world->inventory[i].arch), text_pos.x,
                    text_pos.y - 20, 18, WHITE);
         }
@@ -425,8 +444,8 @@ int main(void) {
         if (world->inventory[i].amount == 0)
           continue;
         ItemData inventory_item = world->inventory[i];
-        Vector2 texture_pos =
-            v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight / 2.0);
+        Vector2 texture_pos = v2(-50 + ScreenWidth / 2.0 + 50 * item_pos,
+                                 ScreenHeight / 2.0 - 40);
         Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
 
         Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
@@ -461,6 +480,7 @@ int main(void) {
       // DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
       //                     (int)mouse_pos_world.y),
       //          100, 25, 20, BLUE);
+      DrawFPS(0, 0);
     }
 
     EndDrawing();
@@ -488,9 +508,17 @@ void init_entities() {
   player->arch = ARCH_PLAYER;
   player->position = v2(0, 0);
   player->sprite_id = SPRITE_player;
-  player->size = v2(6, 8);
+  player->size = get_sprite_size(SPRITE_player);
   player->health = 10;
   player->is_destroyable = false;
+
+  Entity* kitchen = entity_create();
+  kitchen->arch = ARCH_KITCHEN;
+  kitchen->position = v2(10, 0);
+  kitchen->sprite_id = SPRITE_kitchen;
+  kitchen->size = get_sprite_size(SPRITE_kitchen);
+  kitchen->is_destroyable = false;
+  kitchen->health = 1;
 
   for (int i = 0; i < 10; i++) {
     int x = GetRandomValue(-100, 100);
@@ -499,7 +527,7 @@ void init_entities() {
     rock->arch = ARCH_ROCK;
     rock->position = round_pos_to_tile(x, y, TILE_SIZE);
     rock->sprite_id = SPRITE_rock;
-    rock->size = v2(8, 8);
+    rock->size = get_sprite_size(SPRITE_rock);
     rock->health = rock_health;
     rock->is_destroyable = true;
   }
@@ -511,15 +539,27 @@ void init_entities() {
     tree->position = round_pos_to_tile(x, y, TILE_SIZE);
     tree->arch = ARCH_TREE;
     tree->sprite_id = SPRITE_tree;
-    tree->size = v2(8, 16);
+    tree->size = get_sprite_size(SPRITE_tree);
     tree->health = tree_health;
     tree->is_destroyable = true;
+  }
+
+  for (int i = 0; i < 10; i++) {
+    int x = GetRandomValue(-100, 100);
+    int y = GetRandomValue(-100, 100);
+    Entity* bush = entity_create();
+    bush->position = round_pos_to_tile(x, y, TILE_SIZE);
+    bush->arch = ARCH_BUSH;
+    bush->sprite_id = SPRITE_bush;
+    bush->size = get_sprite_size(SPRITE_bush);
+    bush->health = tree_health;
+    bush->is_destroyable = true;
   }
   Entity* wood = entity_create();
   wood->position = round_pos_to_tile(20, 30, TILE_SIZE);
   wood->arch = ARCH_WOOD_ITEM;
   wood->sprite_id = SPRITE_wood;
-  wood->size = v2(8, 8);
+  wood->size = get_sprite_size(SPRITE_wood);
   wood->is_destroyable = true;
   wood->is_item = true;
 
