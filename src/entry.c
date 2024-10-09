@@ -81,7 +81,7 @@ inline ItemData rock_item(int amount) {
 }
 
 inline ItemData wood_item(int amount) {
-  return (ItemData){.amount = 5, .arch = ARCH_WOOD_ITEM};
+  return (ItemData){.amount = amount, .arch = ARCH_WOOD_ITEM};
 }
 
 /*
@@ -221,8 +221,8 @@ Vector2 world_to_tile_v2(Vector2 position, float tile_size) {
   return (Vector2){position.x / tile_size, position.y / tile_size};
 }
 Vector2 round_pos_to_tile(int x, int y, float tile_size) {
-  return (Vector2){(int)(x / tile_size) * tile_size,
-                   (int)(y / tile_size) * tile_size};
+  return (Vector2){floor(x / tile_size) * tile_size,
+                   floor(y / tile_size) * tile_size};
 }
 
 Vector2 get_sprite_size(SpriteID id) {
@@ -386,6 +386,18 @@ bool is_cooking_system(EntityArchetype arch) {
   }
 }
 
+bool check_craft_requirements(CraftingData craft,
+                              const ItemData inventory_items[ARCH_MAX]) {
+  for (int i = 0; i < craft.n_ingredient; i++) {
+    ItemData req = craft.requirements[i];
+    int have = inventory_items[req.arch].amount;
+    if (req.amount > have) {
+      return false;
+    }
+  }
+  return true;
+}
+
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -413,17 +425,17 @@ int main(void) {
   {
     crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
                             .to_craft = ARCH_STOCK_POT,
-                            .requirements = {rock_item(6), wood_item(3)},
+                            .requirements = {rock_item(2), wood_item(2)},
                             .n_ingredient = 2};
 
     crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
                              .to_craft = ARCH_OVEN,
-                             .requirements = {rock_item(10)},
+                             .requirements = {rock_item(4)},
                              .n_ingredient = 1};
 
     crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill,
                               .to_craft = ARCH_GRILL,
-                              .requirements = {rock_item(3), wood_item(6)},
+                              .requirements = {rock_item(1), wood_item(3)},
                               .n_ingredient = 2};
   }
 
@@ -590,9 +602,9 @@ int main(void) {
     if (world->ux_state == UX_nil) {
       int item_pos = 0;
       for (int i = 0; i < ARCH_MAX; i++) {
-        if (world->inventory_items[i].amount == 0)
-          continue;
         ItemData inventory_item = world->inventory_items[i];
+        if (inventory_item.amount == 0)
+          continue;
         Vector2 texture_pos =
             v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
         Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
@@ -687,11 +699,13 @@ int main(void) {
 
         DrawRectangleRec(icon_rec, rec_color);
         Texture2D texture = sprites[craft.sprite_id].texture;
+        // :placing craft
         if (CheckCollisionPointRec(mouse_pos_screen, icon_rec) &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-          world->ux_state = UX_placing;
-          // TODO: Check if the player has the resources
-          world->placing = craft_id;
+          if (check_craft_requirements(craft, world->inventory_items)) {
+            world->ux_state = UX_placing;
+            world->placing = craft_id;
+          }
         }
 
         if (CheckCollisionPointRec(mouse_pos_screen, icon_rec)) {
@@ -705,7 +719,12 @@ int main(void) {
                    20, WHITE);
 
           for (int j = 0; j < craft.n_ingredient; j++) {
+            Color text_color = RED;
             ItemData req = craft.requirements[j];
+            int player_has = world->inventory_items[req.arch].amount;
+            if (player_has >= req.amount) {
+              text_color = WHITE;
+            }
             Texture texture =
                 sprites[get_sprite_id_from_arch(req.arch)].texture;
             DrawTexturePro(
@@ -714,9 +733,9 @@ int main(void) {
                 {ui_origin_x + padding, ui_origin_y + padding + j * icon_size,
                  icon_size, icon_size},
                 v2(0, 0), 0, WHITE);
-            DrawText(TextFormat("%i / 5", req.amount),
+            DrawText(TextFormat("%i / %i", req.amount, player_has),
                      ui_origin_x + padding + icon_size,
-                     ui_origin_y + padding + j * icon_size, 18, WHITE);
+                     ui_origin_y + padding + j * icon_size, 18, text_color);
           }
         }
         DrawTexturePro(
@@ -733,8 +752,8 @@ int main(void) {
       DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
 
       if (world->placing != CRAFTING_nil) {
-        CraftingData data = crafts[world->placing];
-        Texture texture = sprites[data.sprite_id].texture;
+        CraftingData craft = crafts[world->placing];
+        Texture texture = sprites[craft.sprite_id].texture;
 
         int world_factor = camera.zoom / GetWindowScaleDPI().x;
 
@@ -748,23 +767,29 @@ int main(void) {
         DrawTexturePro(
             texture,
             (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-            {pos.x, pos.y, width, height}, v2(tile_size / 2, tile_size / 2), 0,
+            {pos.x, pos.y, width, height}, v2(0, 0), 0,
             (Color){255, 255, 255, 124});
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
           // place craft
           // FIXME: this doesn't clear all the entities struct previous data
           Entity* en = entity_create();
-          en->arch = data.to_craft;
+          en->arch = craft.to_craft;
           en->position = round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
                                            TILE_SIZE);
-          en->sprite_id = data.sprite_id;
-          en->size = get_sprite_size(data.sprite_id);
+          en->sprite_id = craft.sprite_id;
+          en->size = get_sprite_size(craft.sprite_id);
           en->is_destroyable = false;
           en->is_item = false;
           en->health = 100;
           // exit craft mode
           world->ux_state = UX_nil;
+
+          // reduce the inventory
+          for (int x = 0; x < craft.n_ingredient; x++) {
+            ItemData req = craft.requirements[x];
+            world->inventory_items[req.arch].amount -= req.amount;
+          }
         }
       }
     } else if (world->ux_state == UX_cooking) {
@@ -775,14 +800,17 @@ int main(void) {
       DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
     }
 
-    // :dbg ui
+    // :ui dbg
     {
-      // DrawText(TextFormat("Mouse Screen: [%i , %i]", (int)mouse_pos_screen.x,
-      //                     (int)mouse_pos_screen.y),
-      //          400, 25, 20, RED);
-      // DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
-      //                     (int)mouse_pos_world.y),
-      //          100, 25, 20, BLUE);
+      DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
+                          (int)mouse_pos_world.y),
+               400, 25, 20, RED);
+      Vector2 dbg_pos =
+          round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y, TILE_SIZE);
+
+      DrawText(
+          TextFormat("Tile pos: [%i , %i]", (int)dbg_pos.x, (int)dbg_pos.y),
+          100, 25, 20, BLUE);
       DrawFPS(0, 0);
     }
 
