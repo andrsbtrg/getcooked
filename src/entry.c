@@ -121,6 +121,7 @@ typedef struct World {
   ItemData inventory_items[ARCH_MAX];
   UX_State ux_state;
   CraftingID placing;
+  ItemData holding;
 } World;
 
 typedef struct WorldFrame {
@@ -425,7 +426,7 @@ int main(void) {
   {
     crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
                             .to_craft = ARCH_STOCK_POT,
-                            .requirements = {rock_item(2), wood_item(2)},
+                            .requirements = {rock_item(0), wood_item(0)},
                             .n_ingredient = 2};
 
     crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
@@ -556,6 +557,7 @@ int main(void) {
       else if (world->ux_state == UX_crafting ||
                world->ux_state == UX_cooking) {
         world->ux_state = UX_nil;
+        world->holding = {0};
       }
 
       // handle open and close inventory
@@ -563,6 +565,7 @@ int main(void) {
         world->ux_state = UX_inventory;
       } else if (IsKeyPressed(KEY_ESCAPE)) {
         world->ux_state = UX_nil;
+        world->holding = {0};
       }
     }
 
@@ -793,11 +796,61 @@ int main(void) {
         }
       }
     } else if (world->ux_state == UX_cooking) {
-      // :ui placing
+      // :ui cooking
       const char* text = "Cooking...";
       int fontsize = 20;
       int text_width = MeasureText(text, fontsize);
       DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+
+      int item_pos = 0;
+      for (int i = 0; i < ARCH_MAX; i++) {
+        ItemData inventory_item = world->inventory_items[i];
+        if (inventory_item.amount == 0)
+          continue;
+        Vector2 texture_pos =
+            v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
+        Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
+
+        Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
+
+        Color rec_color = (Color){245, 245, 245, 50};
+        if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
+          float offset = 4 + sin(4 * GetTime());
+          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+          rec_color = GOLD;
+          rec_color.a = 50;
+          DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
+                   text_pos.y - 20, 18, WHITE);
+          if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            ItemData holdprev = world->holding;
+            if (holdprev.arch == inventory_item.arch) {
+              if (world->holding.amount < inventory_item.amount) {
+                world->holding.amount += 1;
+              }
+            } else {
+              // if (holdprev.arch == ARCH_NIL) {
+              world->holding = {.amount = 1, .arch = inventory_item.arch};
+            }
+          }
+        }
+        DrawRectangleRec(rec, rec_color);
+
+        DrawTextureEx(
+            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+            texture_pos, 0, 5, WHITE);
+        DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
+                 text_pos.x, text_pos.y + 20, 20, WHITE);
+        item_pos++;
+      }
+      if (world->holding.arch != ARCH_NIL) {
+        Vector2 sprite_pos =
+            v2(mouse_pos_screen.x - 20, mouse_pos_screen.y - 20);
+        ItemData holding = world->holding;
+        DrawTextureEx(sprites[get_sprite_id_from_arch(holding.arch)].texture,
+                      sprite_pos, 0, 5, WHITE);
+        DrawText(TextFormat("%i", holding.amount), sprite_pos.x, sprite_pos.y,
+                 20, WHITE);
+      }
     }
 
     // :ui dbg
