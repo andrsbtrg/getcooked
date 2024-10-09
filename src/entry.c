@@ -73,9 +73,16 @@ typedef struct Entity {
 
 typedef struct ItemData {
   int amount;
-  SpriteID sprite_id;
   EntityArchetype arch;
 } ItemData;
+
+inline ItemData rock_item(int amount) {
+  return (ItemData){.amount = amount, .arch = ARCH_ROCK_ITEM};
+}
+
+inline ItemData wood_item(int amount) {
+  return (ItemData){.amount = 5, .arch = ARCH_WOOD_ITEM};
+}
 
 /*
  * A Crafting ID is something the player can craft while at the
@@ -89,9 +96,15 @@ typedef enum CraftingID {
   CRAFTING_MAX,
 } CraftingID;
 
+#define MAX_REQUIREMENTS 6
 typedef struct CraftingData {
   SpriteID sprite_id;
-  EntityArchetype arch;
+  // This is the entity Archetype that this Crafting action will create
+  EntityArchetype to_craft;
+  // Time required to craft (seconds)
+  float time_to_craft;
+  ItemData requirements[MAX_REQUIREMENTS];
+  int n_ingredient;
 } CraftingData;
 
 typedef enum UX_State {
@@ -252,7 +265,7 @@ EntityArchetype get_drop_from(Entity* destroyed) {
   }
 }
 
-SpriteID get_sprite_from_arch(EntityArchetype arch) {
+SpriteID get_sprite_id_from_arch(EntityArchetype arch) {
   switch (arch) {
     case ARCH_NIL:
       return SPRITE_nil;
@@ -299,7 +312,7 @@ SpriteID get_sprite_from_arch(EntityArchetype arch) {
 
 Entity* create_item_drop(Entity* destroyed) {
   EntityArchetype arch_drop = get_drop_from(destroyed);
-  SpriteID sprite_id = get_sprite_from_arch(arch_drop);
+  SpriteID sprite_id = get_sprite_id_from_arch(arch_drop);
 
   Entity* item = entity_create();
   Vector2 destroyed_pos = destroyed->position;
@@ -318,7 +331,6 @@ inline void setup_inventory() {
     EntityArchetype arch = (EntityArchetype)i;
     idata->amount = 0;
     idata->arch = arch;
-    idata->sprite_id = get_sprite_from_arch(arch);
   }
 }
 
@@ -397,11 +409,22 @@ int main(void) {
   // :inventory setup
   setup_inventory();
   // :crafting data setup
+  // This is const data and should change during runtime
   {
     crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
-                            .arch = ARCH_STOCK_POT};
-    crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven, .arch = ARCH_OVEN};
-    crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill, .arch = ARCH_GRILL};
+                            .to_craft = ARCH_STOCK_POT,
+                            .requirements = {rock_item(6), wood_item(3)},
+                            .n_ingredient = 2};
+
+    crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
+                             .to_craft = ARCH_OVEN,
+                             .requirements = {rock_item(10)},
+                             .n_ingredient = 1};
+
+    crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill,
+                              .to_craft = ARCH_GRILL,
+                              .requirements = {rock_item(3), wood_item(6)},
+                              .n_ingredient = 2};
   }
 
   Camera2D camera = {0};
@@ -586,8 +609,10 @@ int main(void) {
                    text_pos.y - 20, 18, WHITE);
         }
         DrawRectangleRec(rec, rec_color);
-        DrawTextureEx(sprites[inventory_item.sprite_id].texture, texture_pos, 0,
-                      5, WHITE);
+
+        DrawTextureEx(
+            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+            texture_pos, 0, 5, WHITE);
         DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
                  text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
@@ -624,8 +649,10 @@ int main(void) {
                    text_pos.y - 20, 18, WHITE);
         }
         DrawRectangleRec(rec, rec_color);
-        DrawTextureEx(sprites[inventory_item.sprite_id].texture, texture_pos, 0,
-                      5, WHITE);
+
+        DrawTextureEx(
+            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+            texture_pos, 0, 5, WHITE);
         DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
                  text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
@@ -637,39 +664,66 @@ int main(void) {
       int text_width = MeasureText(text, fontsize);
       DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
 
+      Color rec_color = (Color){0, 0, 0, 200};
+      int padding = 10;
       float icon_size = 40.0f;
+      float ui_origin_x = ScreenWidth * 0.5f - 0.5f * 5.0f * icon_size;
+      float ui_origin_y = ScreenHeight * 0.2f;
+      Rectangle ui_container = {ui_origin_x, ui_origin_y, 6 * icon_size,
+                                4 * icon_size};
+
+      // container rec
+      DrawRectangleRec(ui_container, rec_color);
+
+      // draw crafting options
       for (int i = 1; i < CRAFTING_MAX; i++) {
         CraftingID craft_id = (CraftingID)i;
         CraftingData craft = crafts[craft_id];
-        Vector2 texture_pos =
-            v2(-50 + ScreenWidth / 2.0 + 50 * i, ScreenHeight - 45);
-        Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
+        Vector2 texture_pos = v2(ui_origin_x + 50 * i, ScreenHeight * 0.5);
+        Vector2 text_pos = v2(ui_container.x, ui_container.y);
 
-        Rectangle rec =
+        Rectangle icon_rec =
             (Rectangle){texture_pos.x, texture_pos.y, icon_size, icon_size};
 
-        Color rec_color = (Color){245, 245, 245, 50};
-        if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
-          float offset = 4 + sin(4 * GetTime());
-          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
-          rec_color = GOLD;
-          rec_color.a = 50;
-          DrawText(get_arch_name(craft.arch), text_pos.x, text_pos.y - 20, 18,
-                   WHITE);
-        }
-        DrawRectangleRec(rec, rec_color);
+        DrawRectangleRec(icon_rec, rec_color);
         Texture2D texture = sprites[craft.sprite_id].texture;
-        DrawTexturePro(
-            texture,
-            (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-            {texture_pos.x, texture_pos.y, rec.width, rec.height}, v2(0, 0), 0,
-            WHITE);
-        if (CheckCollisionPointRec(mouse_pos_screen, rec) &&
+        if (CheckCollisionPointRec(mouse_pos_screen, icon_rec) &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
           world->ux_state = UX_placing;
           // TODO: Check if the player has the resources
           world->placing = craft_id;
         }
+
+        if (CheckCollisionPointRec(mouse_pos_screen, icon_rec)) {
+          float offset = 4 + sin(4 * GetTime());
+          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+          rec_color = GOLD;
+          rec_color.a = 50;
+          const char* text = get_arch_name(craft.to_craft);
+          float text_length = MeasureText(text, 20);
+          DrawText(get_arch_name(craft.to_craft), text_pos.x, text_pos.y - 24,
+                   20, WHITE);
+
+          for (int j = 0; j < craft.n_ingredient; j++) {
+            ItemData req = craft.requirements[j];
+            Texture texture =
+                sprites[get_sprite_id_from_arch(req.arch)].texture;
+            DrawTexturePro(
+                texture,
+                (Rectangle){0, 0, (float)texture.width, (float)texture.height},
+                {ui_origin_x + padding, ui_origin_y + padding + j * icon_size,
+                 icon_size, icon_size},
+                v2(0, 0), 0, WHITE);
+            DrawText(TextFormat("%i / 5", req.amount),
+                     ui_origin_x + padding + icon_size,
+                     ui_origin_y + padding + j * icon_size, 18, WHITE);
+          }
+        }
+        DrawTexturePro(
+            texture,
+            (Rectangle){0, 0, (float)texture.width, (float)texture.height},
+            {texture_pos.x, texture_pos.y, icon_rec.width, icon_rec.height},
+            v2(0, 0), 0, WHITE);
       }
     } else if (world->ux_state == UX_placing) {
       // :ui placing
@@ -701,7 +755,7 @@ int main(void) {
           // place craft
           // FIXME: this doesn't clear all the entities struct previous data
           Entity* en = entity_create();
-          en->arch = data.arch;
+          en->arch = data.to_craft;
           en->position = round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
                                            TILE_SIZE);
           en->sprite_id = data.sprite_id;
@@ -812,7 +866,7 @@ void init_entities() {
     Entity* bush = entity_create();
     bush->position = round_pos_to_tile(x, y, TILE_SIZE);
     bush->arch = ARCH_PUMPKIN_PLANT;
-    bush->sprite_id = get_sprite_from_arch(ARCH_PUMPKIN_PLANT);
+    bush->sprite_id = get_sprite_id_from_arch(ARCH_PUMPKIN_PLANT);
     bush->size = get_sprite_size(SPRITE_tomato);
     bush->health = plant_health;
     bush->is_destroyable = true;
