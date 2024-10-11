@@ -401,6 +401,10 @@ bool check_craft_requirements(CraftingData craft,
   return true;
 }
 
+bool action_button_pressed() {
+  return IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_SPACE);
+}
+
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -587,15 +591,22 @@ int main(void) {
 
     // :clicking
     {
-      if (world->ux_state == UX_nil &&
-          IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        if (world_frame.selected && world_frame.selected->is_destroyable) {
+      if (world->ux_state == UX_nil && action_button_pressed()) {
+        Entity* target = NULL;
+        // If there are selected item and item near player
+        // it will prefer to destroy the item near player
+        if (world_frame.near_player) {
+          target = world_frame.near_player;
+        } else if (world_frame.selected) {
+          target = world_frame.selected;
+        }
+        if (target && target->is_destroyable) {
           PlaySound(destroy_sound);
           // :destroy
-          world_frame.selected->health--;
-          if (world_frame.selected->health <= 0) {
-            Entity* item = create_item_drop(world_frame.selected);
-            entity_destroy(world_frame.selected);
+          target->health--;
+          if (target->health <= 0) {
+            Entity* item = create_item_drop(target);
+            entity_destroy(target);
           }
         }
       }
@@ -861,11 +872,12 @@ int main(void) {
       //                     (int)mouse_pos_world.y),
       //          400, 25, 20, RED);
       // Vector2 dbg_pos =
-      //     round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y, TILE_SIZE);
+      //     round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
+      //     TILE_SIZE);
       //
       // DrawText(
-      //     TextFormat("Tile pos: [%i , %i]", (int)dbg_pos.x, (int)dbg_pos.y),
-      //     100, 25, 20, BLUE);
+      //     TextFormat("Tile pos: [%i , %i]", (int)dbg_pos.x,
+      //     (int)dbg_pos.y), 100, 25, 20, BLUE);
       DrawFPS(0, 0);
     }
 
