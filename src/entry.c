@@ -685,8 +685,9 @@ int main(void) {
                  text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
       }
-    } else if (world->ux_state == UX_crafting) {
-      // :ui crafting
+    }
+    // :ui crafting
+    else if (world->ux_state == UX_crafting) {
       const char* text = "Crafting...";
       int fontsize = 20;
       int text_width = MeasureText(text, fontsize);
@@ -760,8 +761,9 @@ int main(void) {
             {texture_pos.x, texture_pos.y, icon_rec.width, icon_rec.height},
             v2(0, 0), 0, WHITE);
       }
-    } else if (world->ux_state == UX_placing) {
-      // :ui placing
+    }
+    // :ui placing
+    else if (world->ux_state == UX_placing) {
       const char* text = "Placing...\nPress ESC to exit Placing mode";
       int fontsize = 20;
       int text_width = MeasureText(text, fontsize);
@@ -808,8 +810,9 @@ int main(void) {
           }
         }
       }
-    } else if (world->ux_state == UX_cooking) {
-      // :ui cooking
+    }
+    // :ui cooking
+    else if (world->ux_state == UX_cooking) {
       const char* text = "Cooking...";
       int fontsize = 20;
       int text_width = MeasureText(text, fontsize);
