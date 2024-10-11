@@ -314,13 +314,15 @@ SpriteID get_sprite_id_from_arch(EntityArchetype arch) {
 Entity* create_item_drop(Entity* destroyed) {
   EntityArchetype arch_drop = get_drop_from(destroyed);
   SpriteID sprite_id = get_sprite_id_from_arch(arch_drop);
+  Vector2 size = get_sprite_size(sprite_id);
 
   Entity* item = entity_create();
   Vector2 destroyed_pos = destroyed->position;
-  item->position = v2(destroyed_pos.x, destroyed_pos.y + TILE_SIZE);
+  item->position = round_pos_to_tile(
+      destroyed_pos.x, destroyed_pos.y + destroyed->size.y, TILE_SIZE);
   item->arch = arch_drop;
   item->sprite_id = sprite_id;
-  item->size = get_sprite_size(SPRITE_wood);
+  item->size = size;
   item->is_destroyable = false;
   item->is_item = true;
   return item;
@@ -855,15 +857,15 @@ int main(void) {
 
     // :ui dbg
     {
-      DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
-                          (int)mouse_pos_world.y),
-               400, 25, 20, RED);
-      Vector2 dbg_pos =
-          round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y, TILE_SIZE);
-
-      DrawText(
-          TextFormat("Tile pos: [%i , %i]", (int)dbg_pos.x, (int)dbg_pos.y),
-          100, 25, 20, BLUE);
+      // DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
+      //                     (int)mouse_pos_world.y),
+      //          400, 25, 20, RED);
+      // Vector2 dbg_pos =
+      //     round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y, TILE_SIZE);
+      //
+      // DrawText(
+      //     TextFormat("Tile pos: [%i , %i]", (int)dbg_pos.x, (int)dbg_pos.y),
+      //     100, 25, 20, BLUE);
       DrawFPS(0, 0);
     }
 

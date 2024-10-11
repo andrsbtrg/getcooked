@@ -1,7 +1,7 @@
 [
   {
     "arguments": [
-      "/usr/lib64/ccache/g++",
+      "/usr/bin/g++",
       "-c",
       "raylib/lib/libraylib.a",
       "-Iraylib/include",
