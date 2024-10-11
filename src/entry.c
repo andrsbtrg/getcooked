@@ -405,6 +405,24 @@ bool action_button_pressed() {
   return IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_SPACE);
 }
 
+// This is const data and should change during runtime
+void setup_crafting_data() {
+  crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
+                          .to_craft = ARCH_STOCK_POT,
+                          .requirements = {rock_item(0), wood_item(0)},
+                          .n_ingredient = 2};
+
+  crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
+                           .to_craft = ARCH_OVEN,
+                           .requirements = {rock_item(4)},
+                           .n_ingredient = 1};
+
+  crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill,
+                            .to_craft = ARCH_GRILL,
+                            .requirements = {rock_item(1), wood_item(3)},
+                            .n_ingredient = 2};
+}
+
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -423,28 +441,11 @@ int main(void) {
   init_entities();
 
   Entity* player = &world->entities[0];
-  player->arch = ARCH_PLAYER;
 
   // :inventory setup
   setup_inventory();
   // :crafting data setup
-  // This is const data and should change during runtime
-  {
-    crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
-                            .to_craft = ARCH_STOCK_POT,
-                            .requirements = {rock_item(0), wood_item(0)},
-                            .n_ingredient = 2};
-
-    crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
-                             .to_craft = ARCH_OVEN,
-                             .requirements = {rock_item(4)},
-                             .n_ingredient = 1};
-
-    crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill,
-                              .to_craft = ARCH_GRILL,
-                              .requirements = {rock_item(1), wood_item(3)},
-                              .n_ingredient = 2};
-  }
+  setup_crafting_data();
 
   Camera2D camera = {0};
   setup_camera(&camera);
@@ -463,7 +464,6 @@ int main(void) {
 
     Vector2 mouse_pos_screen = get_mouse_position();
 
-    // Now get the world position
     Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, camera);
 
     BeginMode2D(camera);
