@@ -107,8 +107,22 @@ typedef struct CraftingData {
   // Time required to craft (seconds)
   float time_to_craft;
   ItemData requirements[MAX_REQUIREMENTS];
-  int n_ingredient;
+  int n_requirements;
 } CraftingData;
+
+// Maximum number of ingredients for one dish
+#define MAX_INGREDIENTS 6
+// Maximum number of dishes cooking at the same time
+#define COOKING_MAX 10
+
+typedef struct CookingData {
+  Entity* cooking_on;
+  float time_to_cook;
+  ItemData ingredients[MAX_INGREDIENTS];
+  int n_ingredients;
+  bool is_cooking;
+  float cooking_end_time;
+} CookingData;
 
 typedef enum UX_State {
   UX_nil,
@@ -185,6 +199,7 @@ const char* get_arch_name(EntityArchetype arch) {
 World* world;
 Sprite sprites[SPRITE_MAX];
 CraftingData crafts[CRAFTING_MAX];
+CookingData cooking_data[COOKING_MAX];
 Sound destroy_sound;
 Sound pickup_sound;
 
@@ -393,7 +408,7 @@ bool is_cooking_system(EntityArchetype arch) {
 
 bool check_craft_requirements(CraftingData craft,
                               const ItemData inventory_items[ARCH_MAX]) {
-  for (int i = 0; i < craft.n_ingredient; i++) {
+  for (int i = 0; i < craft.n_requirements; i++) {
     ItemData req = craft.requirements[i];
     int have = inventory_items[req.arch].amount;
     if (req.amount > have) {
@@ -413,19 +428,19 @@ void setup_crafting_data() {
                           .to_craft = ARCH_STOCK_POT,
                           .time_to_craft = 2.0,
                           .requirements = {rock_item(0), wood_item(0)},
-                          .n_ingredient = 2};
+                          .n_requirements = 2};
 
   crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
                            .to_craft = ARCH_OVEN,
                            .time_to_craft = 2.0,
                            .requirements = {rock_item(4)},
-                           .n_ingredient = 1};
+                           .n_requirements = 1};
 
   crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill,
                             .to_craft = ARCH_GRILL,
                             .time_to_craft = 2.0,
                             .requirements = {rock_item(1), wood_item(3)},
-                            .n_ingredient = 2};
+                            .n_requirements = 2};
 }
 
 int main(void) {
@@ -520,13 +535,13 @@ int main(void) {
         }
       }
 
-      // :coking time
+      // :cooking time
       if (entity->is_cookware) {
         if (entity->currently_cooking) {
           // setup timer
           if (entity->cooking_endtime == 0) {
-            // entity->cooking_endtime = GetTime() +
-            // crafts[world->placing].time_to_craft;
+            entity->cooking_endtime =
+                GetTime() + crafts[world->placing].time_to_craft;
           }
 
           if (GetTime() > entity->cooking_endtime) {
@@ -755,7 +770,7 @@ int main(void) {
           DrawText(get_arch_name(craft.to_craft), text_pos.x, text_pos.y - 24,
                    20, WHITE);
 
-          for (int j = 0; j < craft.n_ingredient; j++) {
+          for (int j = 0; j < craft.n_requirements; j++) {
             Color text_color = RED;
             ItemData req = craft.requirements[j];
             int player_has = world->inventory_items[req.arch].amount;
@@ -824,7 +839,7 @@ int main(void) {
           world->ux_state = UX_nil;
 
           // reduce the inventory
-          for (int x = 0; x < craft.n_ingredient; x++) {
+          for (int x = 0; x < craft.n_requirements; x++) {
             ItemData req = craft.requirements[x];
             world->inventory_items[req.arch].amount -= req.amount;
           }
@@ -837,6 +852,7 @@ int main(void) {
       int fontsize = 20;
       int text_width = MeasureText(text, fontsize);
       DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+      Entity* cooking_station = world_frame.near_player;
 
       int item_pos = 0;
       for (int i = 0; i < ARCH_MAX; i++) {
@@ -864,7 +880,6 @@ int main(void) {
                 world->holding.amount += 1;
               }
             } else {
-              // if (holdprev.arch == ARCH_NIL) {
               world->holding = {.amount = 1, .arch = inventory_item.arch};
             }
           }
@@ -882,13 +897,20 @@ int main(void) {
         Vector2 sprite_pos =
             v2(mouse_pos_screen.x - 20, mouse_pos_screen.y - 20);
         ItemData holding = world->holding;
+        Color item_text_color = WHITE;
+        float scale = 5.0;
+        if (CheckCollisionPointRec(mouse_pos_world,
+                                   get_entity_rec(cooking_station))) {
+          item_text_color = GREEN;
+          float offset = 2 + sin(4 * GetTime());
+          scale += offset;
+        }
         DrawTextureEx(sprites[get_sprite_id_from_arch(holding.arch)].texture,
-                      sprite_pos, 0, 5, WHITE);
+                      sprite_pos, 0, scale, WHITE);
         DrawText(TextFormat("%i", holding.amount), sprite_pos.x, sprite_pos.y,
-                 20, WHITE);
+                 20, GREEN);
       }
     }
-
     // :ui dbg
     {
       // DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
@@ -903,7 +925,6 @@ int main(void) {
       //     (int)dbg_pos.y), 100, 25, 20, BLUE);
       DrawFPS(0, 0);
     }
-
     EndDrawing();
   }
 
