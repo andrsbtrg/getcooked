@@ -1033,6 +1033,7 @@ Entity* entity_create() {
     }
   }
   assert(found);  // "No free entities"
+  *found = {};
   found->is_valid = true;
   return found;
 }
