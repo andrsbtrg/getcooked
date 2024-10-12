@@ -69,6 +69,9 @@ typedef struct Entity {
   Vector2 position;
   Vector2 size;
   int health;
+  bool is_cookware;
+  bool currently_cooking;
+  float cooking_endtime;
 } Entity;
 
 typedef struct ItemData {
@@ -306,7 +309,6 @@ SpriteID get_sprite_id_from_arch(EntityArchetype arch) {
       return SPRITE_oven;
     case ARCH_GRILL:
       return SPRITE_grill;
-      break;
   }
   return SPRITE_nil;
 }
@@ -409,16 +411,19 @@ bool action_button_pressed() {
 void setup_crafting_data() {
   crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
                           .to_craft = ARCH_STOCK_POT,
+                          .time_to_craft = 2.0,
                           .requirements = {rock_item(0), wood_item(0)},
                           .n_ingredient = 2};
 
   crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
                            .to_craft = ARCH_OVEN,
+                           .time_to_craft = 2.0,
                            .requirements = {rock_item(4)},
                            .n_ingredient = 1};
 
   crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill,
                             .to_craft = ARCH_GRILL,
+                            .time_to_craft = 2.0,
                             .requirements = {rock_item(1), wood_item(3)},
                             .n_ingredient = 2};
 }
@@ -512,6 +517,21 @@ int main(void) {
         }
         if (CheckCollisionPointRec(get_entity_center(player), selection_rec)) {
           world_frame.near_player = entity;
+        }
+      }
+
+      // :coking time
+      if (entity->is_cookware) {
+        if (entity->currently_cooking) {
+          // setup timer
+          if (entity->cooking_endtime == 0) {
+            // entity->cooking_endtime = GetTime() +
+            // crafts[world->placing].time_to_craft;
+          }
+
+          if (GetTime() > entity->cooking_endtime) {
+            // cook the thing
+          }
         }
       }
 
