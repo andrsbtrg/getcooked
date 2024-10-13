@@ -116,6 +116,7 @@ typedef struct CraftingData {
 #define COOKING_MAX 10
 
 typedef struct CookingData {
+  bool is_valid;
   Entity* cooking_on;
   float time_to_cook;
   ItemData ingredients[MAX_INGREDIENTS];
@@ -443,6 +444,49 @@ void setup_crafting_data() {
                             .n_requirements = 2};
 }
 
+CookingData* cooking_data_create() {
+  CookingData* found = NULL;
+  for (int i = 0; i < COOKING_MAX; i++) {
+    CookingData* c = &cooking_data[i];
+    if (!c->is_valid) {
+      found = c;
+      break;
+    }
+  }
+  *found = {};
+  found->is_valid = true;
+  return found;
+}
+
+CookingData* get_cooking_data(Entity* cooking_station) {
+  CookingData* found = NULL;
+  for (int i = 0; i < COOKING_MAX; i++) {
+    CookingData c = cooking_data[i];
+    if (c.cooking_on == cooking_station) {
+      found = &c;
+      assert(c.is_valid);
+      break;
+    }
+  }
+  return found;
+}
+void cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
+  CookingData* data = get_cooking_data(cooking_station);
+  if (data == NULL) {
+    // init cooking data
+    data = cooking_data_create();
+    data->cooking_on = cooking_station;
+  }
+  for (int i = 0; i < MAX_INGREDIENTS; i++) {
+    if (data->ingredients[i].arch == ARCH_NIL) {
+      ItemData* found = &data->ingredients[i];
+      found->arch = ingredient.arch;
+      found->amount = ingredient.amount;
+      break;
+    }
+  }
+}
+
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -543,9 +587,13 @@ int main(void) {
             entity->cooking_endtime =
                 GetTime() + crafts[world->placing].time_to_craft;
           }
+          DrawText("Preparing", 100, 20, 20, WHITE);
 
           if (GetTime() > entity->cooking_endtime) {
             // cook the thing
+            DrawText("Done", 100, 4, 20, WHITE);
+            entity->currently_cooking = false;
+            entity->cooking_endtime = 0;
           }
         }
       }
@@ -825,7 +873,6 @@ int main(void) {
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
           // place craft
-          // FIXME: this doesn't clear all the entities struct previous data
           Entity* en = entity_create();
           en->arch = craft.to_craft;
           en->position = round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
@@ -833,6 +880,7 @@ int main(void) {
           en->sprite_id = craft.sprite_id;
           en->size = get_sprite_size(craft.sprite_id);
           en->is_destroyable = false;
+          en->is_cookware = true;
           en->is_item = false;
           en->health = 100;
           // exit craft mode
@@ -902,13 +950,18 @@ int main(void) {
         if (CheckCollisionPointRec(mouse_pos_world,
                                    get_entity_rec(cooking_station))) {
           item_text_color = GREEN;
-          float offset = 2 + sin(4 * GetTime());
+          float offset = abs(sin(4 * GetTime()));
           scale += offset;
+          if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            // place in the kitchen
+            cooking_station->currently_cooking = true;
+            cooking_add_ingredients(cooking_station, world->holding);
+          }
         }
         DrawTextureEx(sprites[get_sprite_id_from_arch(holding.arch)].texture,
                       sprite_pos, 0, scale, WHITE);
         DrawText(TextFormat("%i", holding.amount), sprite_pos.x, sprite_pos.y,
-                 20, GREEN);
+                 20, item_text_color);
       }
     }
     // :ui dbg
