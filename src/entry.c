@@ -31,8 +31,64 @@ typedef enum EntityArchetype {
   ARCH_OVEN,
   ARCH_GRILL,
 
+  ARCH_FOOD,
+
   ARCH_MAX,
 } EntityArchetype;
+
+typedef enum FoodID {
+  FOOD_nil,
+  FOOD_burger,
+  FOOD_bread_loaf,
+  FOOD_bread,
+  FOOD_baguette,
+  FOOD_hotdog,
+  FOOD_cocktail,
+  FOOD_beer,
+  FOOD_coffee,
+  FOOD_soda,
+  FOOD_potion_blue,
+  FOOD_potion_red,
+  FOOD_burrito,
+  FOOD_tea,
+  FOOD_lollipop,
+  FOOD_icecream,
+  FOOD_beef_leg,
+  FOOD_chicken_leg,
+  FOOD_chicken,
+  FOOD_egg,
+  FOOD_idk,
+  FOOD_soup_2,
+  FOOD_tomato_soup,
+  FOOD_idk2,
+  FOOD_caramel,
+  FOOD_sashimi1,
+  FOOD_sashimi2,
+  FOOD_cheesecake,
+  FOOD_sushi,
+  FOOD_donut,
+  FOOD_cake,
+  FOOD_sashimi3,
+  FOOD_sushi2,
+  FOOD_sushi_roll,
+  FOOD_acorn,
+  FOOD_sashimi4,
+  FOOD_juicebox,
+  FOOD_energy_drink1,
+  FOOD_energy_drink2,
+  FOOD_ham,
+  FOOD_wine_bottle,
+  FOOD_cola,
+  FOOD_milk,
+  FOOD_chocolate,
+  FOOD_pizza,
+  FOOD_pizza_whole,
+  FOOD_cheese,
+  FOOD_icecream2,
+  FOOD_icecream3,
+  FOOD_icecream4,
+  FOOD_MAX,
+} FoodID;
 
 typedef enum SpriteID {
   SPRITE_nil,
@@ -51,6 +107,59 @@ typedef enum SpriteID {
   SPRITE_stock_pot,
   SPRITE_oven,
   SPRITE_grill,
+
+  SPRITE_FOOD_nil,
+  SPRITE_FOOD_burger,
+  SPRITE_FOOD_bread_loaf,
+  SPRITE_FOOD_bread,
+  SPRITE_FOOD_baguette,
+  SPRITE_FOOD_hotdog,
+  SPRITE_FOOD_cocktail,
+  SPRITE_FOOD_beer,
+  SPRITE_FOOD_coffee,
+  SPRITE_FOOD_soda,
+  SPRITE_FOOD_potion_blue,
+  SPRITE_FOOD_potion_red,
+  SPRITE_FOOD_burrito,
+  SPRITE_FOOD_tea,
+  SPRITE_FOOD_lollipop,
+  SPRITE_FOOD_icecream,
+  SPRITE_FOOD_beef_leg,
+  SPRITE_FOOD_chicken_leg,
+  SPRITE_FOOD_chicken,
+  SPRITE_FOOD_egg,
+  SPRITE_FOOD_idk,
+  SPRITE_FOOD_soup_2,
+  SPRITE_FOOD_tomato_soup,
+  SPRITE_FOOD_idk2,
+  SPRITE_FOOD_caramel,
+  SPRITE_FOOD_sashimi1,
+  SPRITE_FOOD_sashimi2,
+  SPRITE_FOOD_cheesecake,
+  SPRITE_FOOD_sushi,
+  SPRITE_FOOD_donut,
+  SPRITE_FOOD_cake,
+  SPRITE_FOOD_sashimi3,
+  SPRITE_FOOD_sushi2,
+  SPRITE_FOOD_sushi_roll,
+  SPRITE_FOOD_acorn,
+  SPRITE_FOOD_sashimi4,
+  SPRITE_FOOD_juicebox,
+  SPRITE_FOOD_energy_drink1,
+  SPRITE_FOOD_energy_drink2,
+  SPRITE_FOOD_ham,
+  SPRITE_FOOD_wine_bottle,
+  SPRITE_FOOD_cola,
+  SPRITE_FOOD_milk,
+  SPRITE_FOOD_chocolate,
+  SPRITE_FOOD_pizza,
+  SPRITE_FOOD_pizza_whole,
+  SPRITE_FOOD_cheese,
+  SPRITE_FOOD_icecream2,
+  SPRITE_FOOD_icecream3,
+  SPRITE_FOOD_icecream4,
+  SPRITE_FOOD_MAX,
+  // todo: do not separate
   SPRITE_MAX
 } SpriteID;
 
@@ -63,6 +172,7 @@ typedef struct Entity {
   bool is_valid;
   bool is_destroyable;
   bool is_item;
+  bool is_food;
   bool render_sprite;
   SpriteID sprite_id;
   EntityArchetype arch;
@@ -72,11 +182,13 @@ typedef struct Entity {
   bool is_cookware;
   bool currently_cooking;
   float cooking_endtime;
+  FoodID food_id;
 } Entity;
 
 typedef struct ItemData {
   int amount;
   EntityArchetype arch;
+  FoodID food_id;
 } ItemData;
 
 inline ItemData rock_item(int amount) {
@@ -165,6 +277,12 @@ inline Rectangle get_entity_rec(Entity* entity) {
                      entity->size.y};
 }
 
+SpriteID sprite_id_from_food_id(FoodID id) {
+  SpriteID sprite_id = (SpriteID)(id + SPRITE_FOOD_nil);
+
+  return sprite_id;
+}
+
 const char* get_arch_name(EntityArchetype arch) {
   switch (arch) {
     case ARCH_NIL:
@@ -191,8 +309,10 @@ const char* get_arch_name(EntityArchetype arch) {
       return "Stock Pot";
     case ARCH_GRILL:
       return "Grill";
+    case ARCH_FOOD:
+      return "Food";
     default:
-      return "";
+      return "missingname";
   };
 }
 
@@ -211,6 +331,7 @@ const float TILE_SIZE = 8.0f;
 const float ENTITY_SELECTION_RADIUS = 10;
 
 Entity* entity_create();
+Entity* create_food(Vector2 position);
 Sprite load_sprite(const char* path, SpriteID id);
 void init_entities();
 void update_player(Entity* player);
@@ -379,6 +500,13 @@ void load_sprites() {
               SPRITE_stock_pot);
   load_sprite("/home/andres/projects/game/assets/grill.png", SPRITE_grill);
   load_sprite("/home/andres/projects/game/assets/oven.png", SPRITE_oven);
+
+  for (int i = FOOD_nil; i < FOOD_MAX - 1; i++) {
+    const char* filename =
+        TextFormat("/home/andres/projects/game/assets/fnb_sprite/%i.png", i);
+    FoodID id = (FoodID)(i + 1);
+    load_sprite(filename, sprite_id_from_food_id(id));
+  }
 }
 
 Vector2 get_mouse_position() {
@@ -427,19 +555,19 @@ bool action_button_pressed() {
 void setup_crafting_data() {
   crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
                           .to_craft = ARCH_STOCK_POT,
-                          .time_to_craft = 2.0,
+                          .time_to_craft = 10.0,
                           .requirements = {rock_item(0), wood_item(0)},
                           .n_requirements = 2};
 
   crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
                            .to_craft = ARCH_OVEN,
-                           .time_to_craft = 2.0,
+                           .time_to_craft = 10.0,
                            .requirements = {rock_item(4)},
                            .n_requirements = 1};
 
   crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill,
                             .to_craft = ARCH_GRILL,
-                            .time_to_craft = 2.0,
+                            .time_to_craft = 6.0,
                             .requirements = {rock_item(1), wood_item(3)},
                             .n_requirements = 2};
 }
@@ -470,7 +598,7 @@ CookingData* get_cooking_data(Entity* cooking_station) {
   }
   return found;
 }
-void cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
+bool cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
   CookingData* data = get_cooking_data(cooking_station);
   if (data == NULL) {
     // init cooking data
@@ -482,9 +610,11 @@ void cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
       ItemData* found = &data->ingredients[i];
       found->arch = ingredient.arch;
       found->amount = ingredient.amount;
-      break;
+      return true;
     }
   }
+  // max ingredients reached
+  return false;
 }
 
 int main(void) {
@@ -579,25 +709,6 @@ int main(void) {
         }
       }
 
-      // :cooking time
-      if (entity->is_cookware) {
-        if (entity->currently_cooking) {
-          // setup timer
-          if (entity->cooking_endtime == 0) {
-            entity->cooking_endtime =
-                GetTime() + crafts[world->placing].time_to_craft;
-          }
-          DrawText("Preparing", 100, 20, 20, WHITE);
-
-          if (GetTime() > entity->cooking_endtime) {
-            // cook the thing
-            DrawText("Done", 100, 4, 20, WHITE);
-            entity->currently_cooking = false;
-            entity->cooking_endtime = 0;
-          }
-        }
-      }
-
       // :rendering
       switch (entity->arch) {
         case ARCH_PLAYER: {
@@ -618,12 +729,41 @@ int main(void) {
             // float
             float offset = sin(4 * GetTime());
             Vector2 pos = v2(entity->position.x, entity->position.y + offset);
-            DrawTextureV(sprites[entity->sprite_id].texture, pos, WHITE);
+            float scale = 1.0;
+            if (entity->is_food) {
+              scale = 0.5f;
+            }
+            DrawTextureEx(sprites[entity->sprite_id].texture, pos, 0, scale,
+                          WHITE);
           } else {
             DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                          WHITE);
           }
           break;
+        }
+      }
+
+      // :cooking time
+      if (entity->is_cookware) {
+        if (entity->currently_cooking) {
+          // setup timer
+          if (entity->cooking_endtime == 0) {
+            entity->cooking_endtime =
+                GetTime() + crafts[world->placing].time_to_craft;
+          }
+          double time_left = entity->cooking_endtime - GetTime();
+          DrawText(TextFormat("%i", (int)ceil(time_left)), entity->position.x,
+                   entity->position.y, 2, WHITE);
+
+          if (GetTime() > entity->cooking_endtime) {
+            // cook the thing
+            entity->currently_cooking = false;
+            entity->cooking_endtime = 0;
+            Vector2 pos = round_pos_to_tile(
+                entity->position.x, entity->position.y - TILE_SIZE, TILE_SIZE);
+
+            Entity* cooked = create_food(pos);
+          }
         }
       }
     }
@@ -667,6 +807,10 @@ int main(void) {
           PlaySound(pickup_sound);
 
           world->inventory_items[entity_near->arch].amount += 1;
+          if (entity_near->is_food) {
+            world->inventory_items[entity_near->arch].food_id =
+                entity_near->food_id;
+          }
           entity_destroy(entity_near);
         }
       }
@@ -721,9 +865,16 @@ int main(void) {
         }
         DrawRectangleRec(rec, rec_color);
 
-        DrawTextureEx(
-            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
-            texture_pos, 0, 5, WHITE);
+        if (inventory_item.arch == ARCH_FOOD) {
+          DrawTextureEx(
+              sprites[sprite_id_from_food_id(inventory_item.food_id)].texture,
+              texture_pos, 0, 2.5f, WHITE);
+
+        } else {
+          DrawTextureEx(
+              sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+              texture_pos, 0, 5, WHITE);
+        }
         DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
                  text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
@@ -955,7 +1106,13 @@ int main(void) {
           if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             // place in the kitchen
             cooking_station->currently_cooking = true;
-            cooking_add_ingredients(cooking_station, world->holding);
+            if (cooking_add_ingredients(cooking_station, world->holding)) {
+              // reduce inventory
+              world->inventory_items[world->holding.arch].amount -=
+                  world->holding.amount;
+              // drop items
+              world->holding = (ItemData){};
+            }
           }
         }
         DrawTextureEx(sprites[get_sprite_id_from_arch(holding.arch)].texture,
@@ -1132,6 +1289,21 @@ Entity* entity_create() {
   return found;
 }
 
+Entity* create_food(Vector2 position) {
+  Entity* cooked = entity_create();
+  int random = GetRandomValue(FOOD_nil + 1, FOOD_MAX - 1);
+  FoodID food_id = (FoodID)random;
+  SpriteID sprite_id = sprite_id_from_food_id(food_id);
+  cooked->arch = ARCH_FOOD;
+  cooked->sprite_id = sprite_id;
+  cooked->size = get_sprite_size(sprite_id);
+  cooked->position = position;
+  cooked->food_id = food_id;
+  cooked->is_item = true;
+  cooked->is_food = true;
+
+  return cooked;
+}
 void update_camera(Camera2D* camera, Entity* player, float dt) {
   animate_v2_to_target(&camera->target, player->position, dt, 5.0f);
 }
