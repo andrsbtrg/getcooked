@@ -159,7 +159,7 @@ typedef enum SpriteID {
   SPRITE_FOOD_icecream3,
   SPRITE_FOOD_icecream4,
   SPRITE_FOOD_MAX,
-  // todo: do not separate
+  // NOTE: do not separate
   SPRITE_MAX
 } SpriteID;
 
@@ -229,13 +229,21 @@ typedef struct CraftingData {
 
 typedef struct CookingData {
   bool is_valid;
+  // points to an entity which is a cooking station
   Entity* cooking_on;
   float time_to_cook;
+  // array of ingrediens in the cooking station at the time of cooking
   ItemData ingredients[MAX_INGREDIENTS];
   int n_ingredients;
-  bool is_cooking;
   float cooking_end_time;
 } CookingData;
+
+typedef struct Recipe {
+  FoodID result;
+  EntityArchetype cooking_station;
+  EntityArchetype ingredients[MAX_INGREDIENTS];
+  int n_ingredients;
+} Recipe;
 
 typedef enum UX_State {
   UX_nil,
@@ -278,6 +286,8 @@ inline Rectangle get_entity_rec(Entity* entity) {
 }
 
 SpriteID sprite_id_from_food_id(FoodID id) {
+  if (id == FOOD_nil)
+    return SPRITE_nil;
   SpriteID sprite_id = (SpriteID)(id + SPRITE_FOOD_nil);
 
   return sprite_id;
@@ -321,6 +331,7 @@ World* world;
 Sprite sprites[SPRITE_MAX];
 CraftingData crafts[CRAFTING_MAX];
 CookingData cooking_data[COOKING_MAX];
+Recipe recipes[100];
 Sound destroy_sound;
 Sound pickup_sound;
 
@@ -331,7 +342,7 @@ const float TILE_SIZE = 8.0f;
 const float ENTITY_SELECTION_RADIUS = 10;
 
 Entity* entity_create();
-Entity* create_food(Vector2 position);
+Entity* create_food(Entity* cooking_station, Vector2 position);
 Sprite load_sprite(const char* path, SpriteID id);
 void init_entities();
 void update_player(Entity* player);
@@ -476,6 +487,22 @@ inline void setup_inventory() {
   }
 }
 
+void define_recipes() {
+  // :recipes
+  recipes[0] = {
+      .result = FOOD_egg,
+      .cooking_station = ARCH_GRILL,
+      .ingredients = {ARCH_ROCK_ITEM},
+      .n_ingredients = 1,
+  };
+  recipes[1] = {
+      .result = FOOD_tomato_soup,
+      .cooking_station = ARCH_STOCK_POT,
+      .ingredients = {ARCH_TOMATO_ITEM},
+      .n_ingredients = 1,
+  };
+}
+
 void load_sprites() {
   load_sprite("/home/andres/projects/game/assets/missing.png", SPRITE_nil);
   load_sprite("/home/andres/projects/game/assets/player.png", SPRITE_player);
@@ -551,7 +578,7 @@ bool action_button_pressed() {
   return IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_SPACE);
 }
 
-// This is const data and should change during runtime
+// This is const data and shouldn't change during runtime
 void setup_crafting_data() {
   crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
                           .to_craft = ARCH_STOCK_POT,
@@ -589,10 +616,10 @@ CookingData* cooking_data_create() {
 CookingData* get_cooking_data(Entity* cooking_station) {
   CookingData* found = NULL;
   for (int i = 0; i < COOKING_MAX; i++) {
-    CookingData c = cooking_data[i];
-    if (c.cooking_on == cooking_station) {
-      found = &c;
-      assert(c.is_valid);
+    CookingData* c = &cooking_data[i];
+    if (c->cooking_on == cooking_station) {
+      found = c;
+      assert(c->is_valid);
       break;
     }
   }
@@ -610,6 +637,7 @@ bool cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
       ItemData* found = &data->ingredients[i];
       found->arch = ingredient.arch;
       found->amount = ingredient.amount;
+      data->n_ingredients++;
       return true;
     }
   }
@@ -640,6 +668,7 @@ int main(void) {
   setup_inventory();
   // :crafting data setup
   setup_crafting_data();
+  define_recipes();
 
   Camera2D camera = {0};
   setup_camera(&camera);
@@ -757,12 +786,13 @@ int main(void) {
 
           if (GetTime() > entity->cooking_endtime) {
             // cook the thing
-            entity->currently_cooking = false;
-            entity->cooking_endtime = 0;
             Vector2 pos = round_pos_to_tile(
                 entity->position.x, entity->position.y - TILE_SIZE, TILE_SIZE);
 
-            Entity* cooked = create_food(pos);
+            Entity* cooked = create_food(entity, pos);
+
+            entity->currently_cooking = false;
+            entity->cooking_endtime = 0;
           }
         }
       }
@@ -1295,10 +1325,72 @@ Entity* entity_create() {
   return found;
 }
 
-Entity* create_food(Vector2 position) {
+bool ingredients_match(CookingData* data, Recipe* recipe) {
+  if (data->n_ingredients != recipe->n_ingredients) {
+    return false;  // Ingredient count must match
+  }
+
+  // Create a boolean array to track matched ingredients
+  bool matched[MAX_INGREDIENTS] = {false};
+
+  // Check each ingredient in the recipe
+  for (int i = 0; i < recipe->n_ingredients; i++) {
+    bool found = false;
+
+    // Try to find a match for recipe ingredient[i] in data->ingredients
+    for (int j = 0; j < data->n_ingredients; j++) {
+      if (!matched[j] && recipe->ingredients[i] == data->ingredients[j].arch) {
+        matched[j] = true;  // Mark ingredient as matched
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      return false;  // If any ingredient is not found, the recipe doesn't match
+    }
+  }
+
+  return true;  // All ingredients matched
+}
+
+/*
+ * Must check the ingredients and define what food is the result
+ * of the ingredients and the cooking station used
+ */
+FoodID resolve_ingredients(CookingData* data,
+                           Recipe* recipes,
+                           int recipe_count) {
+  if (!data->is_valid) {
+    return FOOD_nil;  // Invalid or not currently cooking
+  }
+
+  // Loop through all the recipes
+  for (int i = 0; i < recipe_count; i++) {
+    Recipe* recipe = &recipes[i];
+
+    // Check if the cooking station matches
+    if (recipe->cooking_station != data->cooking_on->arch) {
+      continue;
+    }
+
+    // Check if the ingredients match (in any order)
+    if (ingredients_match(data, recipe)) {
+      return recipe->result;  // Found a matching recipe
+    }
+  }
+
+  return FOOD_nil;  // No matching recipe found
+}
+
+Entity* create_food(Entity* cooking_station, Vector2 position) {
   Entity* cooked = entity_create();
-  int random = GetRandomValue(FOOD_nil + 1, FOOD_MAX - 1);
-  FoodID food_id = (FoodID)random;
+  // TODO: replace this with getting the actual food according to the
+  // ingredients
+
+  CookingData* cooking_data = get_cooking_data(cooking_station);
+  int n_recipes = (sizeof recipes / sizeof recipes[0]);
+  FoodID food_id = resolve_ingredients(cooking_data, recipes, n_recipes);
   SpriteID sprite_id = sprite_id_from_food_id(food_id);
   cooked->arch = ARCH_FOOD;
   cooked->sprite_id = sprite_id;
@@ -1307,6 +1399,9 @@ Entity* create_food(Vector2 position) {
   cooked->food_id = food_id;
   cooked->is_item = true;
   cooked->is_food = true;
+
+  // clean work station data
+  *cooking_data = {};
 
   return cooked;
 }
