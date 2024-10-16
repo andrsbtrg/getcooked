@@ -1085,9 +1085,15 @@ int main(void) {
         }
         DrawRectangleRec(rec, rec_color);
 
-        DrawTextureEx(
-            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
-            texture_pos, 0, 5, WHITE);
+        if (inventory_item.arch == ARCH_FOOD) {
+          DrawTextureEx(
+              sprites[sprite_id_from_food_id(inventory_item.food_id)].texture,
+              texture_pos, 0, 2.5f, WHITE);
+        } else {
+          DrawTextureEx(
+              sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+              texture_pos, 0, 5, WHITE);
+        }
         DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
                  text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
