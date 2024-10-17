@@ -714,7 +714,7 @@ int main(void) {
       }
     }
 
-    // :loop all entities
+    // :loop update all entities
     for (int i = 0; i < MAX_ENTITIES; i++) {
       Entity* entity = &world->entities[i];
       if (NULL == entity) {
@@ -738,40 +738,6 @@ int main(void) {
         }
       }
 
-      // :rendering
-      switch (entity->arch) {
-        case ARCH_PLAYER: {
-          DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
-                       WHITE);
-          break;
-        }
-        default: {
-          Color tile_color = {0};
-          if (entity == world_frame.selected) {
-            tile_color = (Color){255, 255, 255, 50};
-          }
-          if (entity == world_frame.near_player) {
-            tile_color = (Color){255, 0, 0, 50};
-          }
-          DrawRectangleRec(rec, tile_color);
-          if (entity->is_item) {
-            // float
-            float offset = sin(4 * GetTime());
-            Vector2 pos = v2(entity->position.x, entity->position.y + offset);
-            float scale = 1.0;
-            if (entity->is_food) {
-              scale = 0.5f;
-            }
-            DrawTextureEx(sprites[entity->sprite_id].texture, pos, 0, scale,
-                          WHITE);
-          } else {
-            DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
-                         WHITE);
-          }
-          break;
-        }
-      }
-
       // :cooking time
       if (entity->is_cookware) {
         if (entity->currently_cooking) {
@@ -780,12 +746,8 @@ int main(void) {
             entity->cooking_endtime =
                 GetTime() + crafts[world->placing].time_to_craft;
           }
-          double time_left = entity->cooking_endtime - GetTime();
-          DrawText(TextFormat("%i", (int)ceil(time_left)), entity->position.x,
-                   entity->position.y, 2, WHITE);
-
+          // cook the thing
           if (GetTime() > entity->cooking_endtime) {
-            // cook the thing
             Vector2 pos = round_pos_to_tile(
                 entity->position.x, entity->position.y - TILE_SIZE, TILE_SIZE);
 
@@ -796,6 +758,65 @@ int main(void) {
           }
         }
       }
+    }
+
+    // :rendering
+    {
+      for (int i = 0; i < MAX_ENTITIES; i++) {
+        Entity* entity = &world->entities[i];
+        if (NULL == entity) {
+          continue;
+        }
+        if (!entity->is_valid) {
+          continue;
+        }
+
+        Rectangle rec = get_entity_rec(entity);
+        if (entity->is_food) {
+          rec = (Rectangle){rec.x, rec.y, rec.width / 2, rec.height / 2};
+        }
+
+        // :rendering
+        switch (entity->arch) {
+          case ARCH_PLAYER: {
+            break;
+          }
+          default: {
+            Color tile_color = {0};
+            if (entity == world_frame.selected) {
+              tile_color = (Color){255, 255, 255, 50};
+            }
+            if (entity == world_frame.near_player) {
+              tile_color = (Color){255, 0, 0, 50};
+            }
+            DrawRectangleRec(rec, tile_color);
+            if (entity->is_item) {
+              // float
+              float offset = sin(4 * GetTime());
+              Vector2 pos = v2(entity->position.x, entity->position.y + offset);
+              float scale = 1.0;
+              if (entity->is_food) {
+                scale = 0.5f;
+              }
+              DrawTextureEx(sprites[entity->sprite_id].texture, pos, 0, scale,
+                            WHITE);
+            } else {
+              DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
+                           WHITE);
+            }
+            // draw cooking effects
+            if (entity->is_cookware && entity->currently_cooking) {
+              double time_left = entity->cooking_endtime - GetTime();
+              DrawText(TextFormat("%i", (int)ceil(time_left)),
+                       entity->position.x, entity->position.y, 2, WHITE);
+            }
+            break;
+          }
+        }
+      }
+
+      // :render player
+      DrawTextureV(sprites[player->sprite_id].texture, player->position, WHITE);
     }
 
     // :ux_state detection
