@@ -8,7 +8,7 @@
 #include "raylib.h"
 #include "raymath.h"
 
-typedef enum EntityID {
+typedef enum ArchetypeID {
   ARCH_NIL,
   ARCH_PLAYER,
   ARCH_ROCK,
@@ -88,7 +88,7 @@ typedef enum EntityID {
   ARCH_FOOD_MAX,
 
   ARCH_MAX,
-} EntityID;
+} ArchetypeID;
 
 typedef enum FoodID {
   FOOD_nil,
@@ -229,7 +229,7 @@ typedef struct Entity {
   bool is_food;
   bool render_sprite;
   SpriteID sprite_id;
-  EntityID arch;
+  ArchetypeID arch;
   Vector2 position;
   Vector2 size;
   int health;
@@ -241,7 +241,7 @@ typedef struct Entity {
 
 typedef struct ItemData {
   int amount;
-  EntityID arch;
+  ArchetypeID arch;
   FoodID food_id;
 } ItemData;
 
@@ -253,7 +253,7 @@ inline ItemData wood_item(int amount) {
   return (ItemData){.amount = amount, .arch = ARCH_WOOD_ITEM};
 }
 
-inline bool arch_is_food(EntityID arch) {
+inline bool arch_is_food(ArchetypeID arch) {
   return (arch > ARCH_FOOD_nil && arch < ARCH_FOOD_MAX);
 }
 
@@ -273,7 +273,7 @@ typedef enum CraftingID {
 typedef struct CraftingData {
   SpriteID sprite_id;
   // This is the entity Archetype that this Crafting action will create
-  EntityID to_craft;
+  ArchetypeID to_craft;
   // Time required to craft (seconds)
   float time_to_craft;
   ItemData requirements[MAX_REQUIREMENTS];
@@ -298,8 +298,8 @@ typedef struct CookingData {
 
 typedef struct Recipe {
   FoodID result;
-  EntityID cooking_station;
-  EntityID ingredients[MAX_INGREDIENTS];
+  ArchetypeID cooking_station;
+  ArchetypeID ingredients[MAX_INGREDIENTS];
   int n_ingredients;
 } Recipe;
 
@@ -352,16 +352,16 @@ SpriteID sprite_id_from_food_id(FoodID id) {
   return sprite_id;
 }
 
-EntityID arch_from_food_id(FoodID id) {
+ArchetypeID arch_from_food_id(FoodID id) {
   if (id == FOOD_nil) {
     return ARCH_FOOD_nil;
   }
-  EntityID arch = (EntityID)(id + ARCH_FOOD_nil);
+  ArchetypeID arch = (ArchetypeID)(id + ARCH_FOOD_nil);
 
   return arch;
 }
 
-const char* get_arch_name(EntityID arch) {
+const char* get_arch_name(ArchetypeID arch) {
   switch (arch) {
     case ARCH_NIL:
       return "_";
@@ -471,7 +471,7 @@ void entity_destroy(Entity* entity) {
   entity = {0};
 }
 
-EntityID get_drop_from(Entity* destroyed) {
+ArchetypeID get_drop_from(Entity* destroyed) {
   switch (destroyed->arch) {
     case ARCH_ROCK:
       return ARCH_ROCK_ITEM;
@@ -494,7 +494,7 @@ EntityID get_drop_from(Entity* destroyed) {
   }
 }
 
-SpriteID get_sprite_id_from_arch(EntityID arch) {
+SpriteID get_sprite_id_from_arch(ArchetypeID arch) {
   switch (arch) {
     case ARCH_NIL:
       return SPRITE_nil;
@@ -548,7 +548,7 @@ SpriteID get_sprite_id_from_arch(EntityID arch) {
 }
 
 Entity* create_item_drop(Entity* destroyed) {
-  EntityID arch_drop = get_drop_from(destroyed);
+  ArchetypeID arch_drop = get_drop_from(destroyed);
   SpriteID sprite_id = get_sprite_id_from_arch(arch_drop);
   Vector2 size = get_sprite_size(sprite_id);
 
@@ -567,7 +567,7 @@ Entity* create_item_drop(Entity* destroyed) {
 inline void setup_inventory() {
   for (int i = 0; i < ARCH_MAX; i++) {
     ItemData* idata = &world->inventory_items[i];
-    EntityID arch = (EntityID)i;
+    ArchetypeID arch = (ArchetypeID)i;
     idata->amount = 0;
     idata->arch = arch;
   }
@@ -643,7 +643,7 @@ World* init_world() {
   return world;
 }
 
-bool is_cooking_system(EntityID arch) {
+bool is_cooking_system(ArchetypeID arch) {
   switch (arch) {
     case ARCH_OVEN:
     case ARCH_STOCK_POT:
@@ -919,7 +919,7 @@ int main(void) {
     {
       // UX states like craft and cook depend on being close to certain entity
       if (world_frame.near_player) {
-        EntityID arch = world_frame.near_player->arch;
+        ArchetypeID arch = world_frame.near_player->arch;
         if (world->ux_state != UX_placing) {
           if (arch == ARCH_CRAFT_TABLE) {
             world->ux_state = UX_crafting;
@@ -1502,7 +1502,7 @@ Entity* create_food(Entity* cooking_station, Vector2 position) {
   CookingData* cooking_data = get_cooking_data(cooking_station);
   int n_recipes = (sizeof recipes / sizeof recipes[0]);
   FoodID food_id = resolve_ingredients(cooking_data, recipes, n_recipes);
-  EntityID arch = arch_from_food_id(food_id);
+  ArchetypeID arch = arch_from_food_id(food_id);
   SpriteID sprite_id = get_sprite_id_from_arch(arch);
   cooked->arch = arch;
   cooked->sprite_id = sprite_id;
