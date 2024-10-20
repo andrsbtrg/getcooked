@@ -8,6 +8,8 @@
 #include "raylib.h"
 #include "raymath.h"
 
+#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
+
 typedef enum ArchetypeID {
   ARCH_NIL,
   ARCH_PLAYER,
@@ -303,6 +305,12 @@ typedef struct Recipe {
   int n_ingredients;
 } Recipe;
 
+typedef struct WorldResourceData {
+  ArchetypeID arch;
+  float spawn_interval;
+  int max_count;
+} WorldResourceData;
+
 typedef enum UX_State {
   UX_nil,
   UX_inventory,
@@ -311,6 +319,29 @@ typedef enum UX_State {
   UX_placing,
 } UX_State;
 
+struct World;
+// :globals
+World* world;
+Sprite sprites[SPRITE_MAX];
+CraftingData crafts[CRAFTING_MAX];
+CookingData cooking_data[COOKING_MAX];
+const WorldResourceData world_resources[] = {
+    {ARCH_TREE, 10.f, 10},        {ARCH_ROCK, 5.f, 12},
+    {ARCH_TOMATO_PLANT, 5.f, 10}, {ARCH_PUMPKIN_PLANT, 10.f, 7},
+    {ARCH_PLANT, 15.f, 10},
+};
+Recipe recipes[100];
+Sound destroy_sound;
+Sound pickup_sound;
+
+int ScreenWidth = 800;
+int ScreenHeight = 600;
+
+// :consts
+
+const float TILE_SIZE = 8.0f;
+const float ENTITY_SELECTION_RADIUS = 12;
+const float PICKUP_RADIUS = 8;
 #define MAX_ENTITIES 1024
 typedef struct World {
   Entity entities[MAX_ENTITIES];
@@ -318,6 +349,7 @@ typedef struct World {
   UX_State ux_state;
   CraftingID placing;
   ItemData holding;
+  float spawn_data[ARRAY_LEN(world_resources)];
 } World;
 
 typedef struct WorldFrame {
@@ -371,6 +403,12 @@ const char* get_arch_name(ArchetypeID arch) {
       return "Rock";
     case ARCH_TREE:
       return "Tree";
+    case ARCH_PLANT:
+      return "Plant";
+    case ARCH_TOMATO_PLANT:
+      return "Tomato Plant";
+    case ARCH_PUMPKIN_PLANT:
+      return "Pumpkin plant";
     case ARCH_ROCK_ITEM:
       return "Rock";
     case ARCH_WOOD_ITEM:
@@ -401,22 +439,6 @@ const char* get_arch_name(ArchetypeID arch) {
       return "missingname";
   };
 }
-
-// :globals
-World* world;
-Sprite sprites[SPRITE_MAX];
-CraftingData crafts[CRAFTING_MAX];
-CookingData cooking_data[COOKING_MAX];
-Recipe recipes[100];
-Sound destroy_sound;
-Sound pickup_sound;
-
-int ScreenWidth = 800;
-int ScreenHeight = 600;
-
-const float TILE_SIZE = 8.0f;
-const float ENTITY_SELECTION_RADIUS = 12;
-const float PICKUP_RADIUS = 8;
 
 Entity* entity_create();
 Entity* create_food(Entity* cooking_station, Vector2 position);
@@ -449,7 +471,7 @@ void animate_v2_to_target(Vector2* value,
 Vector2 world_to_tile_v2(Vector2 position, float tile_size) {
   return (Vector2){position.x / tile_size, position.y / tile_size};
 }
-Vector2 round_pos_to_tile(int x, int y, float tile_size) {
+Vector2 round_pos_to_tile(int x, int y, float tile_size = TILE_SIZE) {
   return (Vector2){floor(x / tile_size) * tile_size,
                    floor(y / tile_size) * tile_size};
 }
@@ -639,7 +661,11 @@ Vector2 get_mouse_position() {
 
 World* init_world() {
   World* world = (World*)malloc(sizeof(World));
+  *world = {0};
   world->ux_state = UX_nil;
+  // for (int i = 0; i < ARRAY_LEN(world->spawn_data); i++) {
+  //   world->spawn_data[i] = 0.0f;
+  // }
   return world;
 }
 
@@ -802,6 +828,48 @@ int main(void) {
           if (abs(j % 2) == abs(i % 2)) {
             DrawRectangleRec(rec, (Color){255, 255, 255, 10});
           }
+        }
+      }
+    }
+
+    // :spawn resources
+    {
+      for (int i = 0; i < ARRAY_LEN(world_resources); i++) {
+        WorldResourceData data = world_resources[i];
+
+        // TODO: replace with count state to avoid counting each frame
+        int entity_count = 0;
+        for (int x = 0; x < MAX_ENTITIES; x++) {
+          Entity* e = &world->entities[x];
+          if (e->arch == data.arch) {
+            entity_count += 1;
+          }
+        }
+
+        if (entity_count >= data.max_count) {
+          continue;
+        }
+
+        // setup spawn timer
+        if (almost_equals(0.0, world->spawn_data[i], 0.01)) {
+          if (entity_count < data.max_count) {
+            world->spawn_data[i] = GetTime() + data.spawn_interval;
+          }
+        }
+        if (GetTime() > world->spawn_data[i]) {
+          // spawn the thing
+          fprintf(stdout, "INFO: Spawning: %s\n", get_arch_name(data.arch));
+          Entity* item_to_spawn = entity_create();
+          int pos_x = GetRandomValue(-100, 100);
+          int pos_y = GetRandomValue(-100, 100);
+          SpriteID sprite_id = get_sprite_id_from_arch(data.arch);
+          item_to_spawn->arch = data.arch;
+          item_to_spawn->position = round_pos_to_tile(pos_x, pos_y);
+          item_to_spawn->sprite_id = sprite_id;
+          item_to_spawn->health = 2;
+          item_to_spawn->is_destroyable = true;
+          item_to_spawn->size = get_sprite_size(sprite_id);
+          world->spawn_data[i] = 0.0;
         }
       }
     }
