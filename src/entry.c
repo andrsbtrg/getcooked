@@ -353,8 +353,9 @@ SpriteID sprite_id_from_food_id(FoodID id) {
 }
 
 EntityID arch_from_food_id(FoodID id) {
-  if (id == FOOD_nil)
-    return ARCH_NIL;
+  if (id == FOOD_nil) {
+    return ARCH_FOOD_nil;
+  }
   EntityID arch = (EntityID)(id + ARCH_FOOD_nil);
 
   return arch;
@@ -1501,8 +1502,8 @@ Entity* create_food(Entity* cooking_station, Vector2 position) {
   CookingData* cooking_data = get_cooking_data(cooking_station);
   int n_recipes = (sizeof recipes / sizeof recipes[0]);
   FoodID food_id = resolve_ingredients(cooking_data, recipes, n_recipes);
-  SpriteID sprite_id = sprite_id_from_food_id(food_id);
   EntityID arch = arch_from_food_id(food_id);
+  SpriteID sprite_id = get_sprite_id_from_arch(arch);
   cooked->arch = arch;
   cooked->sprite_id = sprite_id;
   cooked->size = get_sprite_size(sprite_id);
