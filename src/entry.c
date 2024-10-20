@@ -8,7 +8,7 @@
 #include "raylib.h"
 #include "raymath.h"
 
-typedef enum EntityArchetype {
+typedef enum EntityID {
   ARCH_NIL,
   ARCH_PLAYER,
   ARCH_ROCK,
@@ -20,21 +20,75 @@ typedef enum EntityArchetype {
   ARCH_PLANT,
   ARCH_SOIL,
 
+  // items
   ARCH_ROCK_ITEM,
   ARCH_WOOD_ITEM,
   ARCH_PUMPKIN_ITEM,
   ARCH_TOMATO_ITEM,
   ARCH_CORN_ITEM,
 
+  // crafting
   ARCH_CRAFT_TABLE,
   ARCH_STOCK_POT,
   ARCH_OVEN,
   ARCH_GRILL,
 
+  // food
   ARCH_FOOD,
+  ARCH_FOOD_nil,
+  ARCH_FOOD_burger,
+  ARCH_FOOD_bread_loaf,
+  ARCH_FOOD_bread,
+  ARCH_FOOD_baguette,
+  ARCH_FOOD_hotdog,
+  ARCH_FOOD_cocktail,
+  ARCH_FOOD_beer,
+  ARCH_FOOD_coffee,
+  ARCH_FOOD_soda,
+  ARCH_FOOD_potion_blue,
+  ARCH_FOOD_potion_red,
+  ARCH_FOOD_burrito,
+  ARCH_FOOD_tea,
+  ARCH_FOOD_lollipop,
+  ARCH_FOOD_icecream,
+  ARCH_FOOD_beef_leg,
+  ARCH_FOOD_chicken_leg,
+  ARCH_FOOD_chicken,
+  ARCH_FOOD_egg,
+  ARCH_FOOD_idk,
+  ARCH_FOOD_soup_2,
+  ARCH_FOOD_tomato_soup,
+  ARCH_FOOD_idk2,
+  ARCH_FOOD_caramel,
+  ARCH_FOOD_sashimi1,
+  ARCH_FOOD_sashimi2,
+  ARCH_FOOD_cheesecake,
+  ARCH_FOOD_sushi,
+  ARCH_FOOD_donut,
+  ARCH_FOOD_cake,
+  ARCH_FOOD_sashimi3,
+  ARCH_FOOD_sushi2,
+  ARCH_FOOD_sushi_roll,
+  ARCH_FOOD_acorn,
+  ARCH_FOOD_sashimi4,
+  ARCH_FOOD_juicebox,
+  ARCH_FOOD_energy_drink1,
+  ARCH_FOOD_energy_drink2,
+  ARCH_FOOD_ham,
+  ARCH_FOOD_wine_bottle,
+  ARCH_FOOD_cola,
+  ARCH_FOOD_milk,
+  ARCH_FOOD_chocolate,
+  ARCH_FOOD_pizza,
+  ARCH_FOOD_pizza_whole,
+  ARCH_FOOD_cheese,
+  ARCH_FOOD_icecream2,
+  ARCH_FOOD_icecream3,
+  ARCH_FOOD_icecream4,
+  ARCH_FOOD_MAX,
 
   ARCH_MAX,
-} EntityArchetype;
+} EntityID;
 
 typedef enum FoodID {
   FOOD_nil,
@@ -175,7 +229,7 @@ typedef struct Entity {
   bool is_food;
   bool render_sprite;
   SpriteID sprite_id;
-  EntityArchetype arch;
+  EntityID arch;
   Vector2 position;
   Vector2 size;
   int health;
@@ -187,7 +241,7 @@ typedef struct Entity {
 
 typedef struct ItemData {
   int amount;
-  EntityArchetype arch;
+  EntityID arch;
   FoodID food_id;
 } ItemData;
 
@@ -197,6 +251,10 @@ inline ItemData rock_item(int amount) {
 
 inline ItemData wood_item(int amount) {
   return (ItemData){.amount = amount, .arch = ARCH_WOOD_ITEM};
+}
+
+inline bool arch_is_food(EntityID arch) {
+  return (arch > ARCH_FOOD_nil && arch < ARCH_FOOD_MAX);
 }
 
 /*
@@ -215,7 +273,7 @@ typedef enum CraftingID {
 typedef struct CraftingData {
   SpriteID sprite_id;
   // This is the entity Archetype that this Crafting action will create
-  EntityArchetype to_craft;
+  EntityID to_craft;
   // Time required to craft (seconds)
   float time_to_craft;
   ItemData requirements[MAX_REQUIREMENTS];
@@ -240,8 +298,8 @@ typedef struct CookingData {
 
 typedef struct Recipe {
   FoodID result;
-  EntityArchetype cooking_station;
-  EntityArchetype ingredients[MAX_INGREDIENTS];
+  EntityID cooking_station;
+  EntityID ingredients[MAX_INGREDIENTS];
   int n_ingredients;
 } Recipe;
 
@@ -265,6 +323,7 @@ typedef struct World {
 typedef struct WorldFrame {
   Entity* selected;
   Entity* near_player;
+  Entity* near_pickup;
 } WorldFrame;
 
 inline Vector2 v2(float x, float y) {
@@ -293,7 +352,15 @@ SpriteID sprite_id_from_food_id(FoodID id) {
   return sprite_id;
 }
 
-const char* get_arch_name(EntityArchetype arch) {
+EntityID arch_from_food_id(FoodID id) {
+  if (id == FOOD_nil)
+    return ARCH_NIL;
+  EntityID arch = (EntityID)(id + ARCH_FOOD_nil);
+
+  return arch;
+}
+
+const char* get_arch_name(EntityID arch) {
   switch (arch) {
     case ARCH_NIL:
       return "_";
@@ -321,6 +388,14 @@ const char* get_arch_name(EntityArchetype arch) {
       return "Grill";
     case ARCH_FOOD:
       return "Food";
+    case ARCH_FOOD_nil:
+      return "Dubious food";
+    case ARCH_FOOD_egg:
+      return "Eggs";
+    case ARCH_FOOD_pizza_whole:
+      return "Pizza";
+    case ARCH_FOOD_tomato_soup:
+      return "Tomato soup";
     default:
       return "missingname";
   };
@@ -339,7 +414,8 @@ int ScreenWidth = 800;
 int ScreenHeight = 600;
 
 const float TILE_SIZE = 8.0f;
-const float ENTITY_SELECTION_RADIUS = 10;
+const float ENTITY_SELECTION_RADIUS = 12;
+const float PICKUP_RADIUS = 8;
 
 Entity* entity_create();
 Entity* create_food(Entity* cooking_station, Vector2 position);
@@ -394,7 +470,7 @@ void entity_destroy(Entity* entity) {
   entity = {0};
 }
 
-EntityArchetype get_drop_from(Entity* destroyed) {
+EntityID get_drop_from(Entity* destroyed) {
   switch (destroyed->arch) {
     case ARCH_ROCK:
       return ARCH_ROCK_ITEM;
@@ -417,7 +493,7 @@ EntityArchetype get_drop_from(Entity* destroyed) {
   }
 }
 
-SpriteID get_sprite_id_from_arch(EntityArchetype arch) {
+SpriteID get_sprite_id_from_arch(EntityID arch) {
   switch (arch) {
     case ARCH_NIL:
       return SPRITE_nil;
@@ -449,20 +525,29 @@ SpriteID get_sprite_id_from_arch(EntityArchetype arch) {
       return SPRITE_nil;
     case ARCH_CRAFT_TABLE:
       return SPRITE_table;
-    case ARCH_MAX:
-      break;
     case ARCH_STOCK_POT:
       return SPRITE_stock_pot;
     case ARCH_OVEN:
       return SPRITE_oven;
     case ARCH_GRILL:
       return SPRITE_grill;
+    case ARCH_MAX:
+      break;
+    default:
+      break;
+  }
+
+  if (arch > ARCH_FOOD_nil && arch < ARCH_FOOD_MAX) {
+    int id = arch - ARCH_FOOD_nil;
+    assert(id > 0);
+    SpriteID sprite_id = (SpriteID)(id + SPRITE_FOOD_nil);
+    return sprite_id;
   }
   return SPRITE_nil;
 }
 
 Entity* create_item_drop(Entity* destroyed) {
-  EntityArchetype arch_drop = get_drop_from(destroyed);
+  EntityID arch_drop = get_drop_from(destroyed);
   SpriteID sprite_id = get_sprite_id_from_arch(arch_drop);
   Vector2 size = get_sprite_size(sprite_id);
 
@@ -481,13 +566,13 @@ Entity* create_item_drop(Entity* destroyed) {
 inline void setup_inventory() {
   for (int i = 0; i < ARCH_MAX; i++) {
     ItemData* idata = &world->inventory_items[i];
-    EntityArchetype arch = (EntityArchetype)i;
+    EntityID arch = (EntityID)i;
     idata->amount = 0;
     idata->arch = arch;
   }
 }
 
-void define_recipes() {
+void setup_recipes() {
   // :recipes
   recipes[0] = {
       .result = FOOD_egg,
@@ -500,6 +585,12 @@ void define_recipes() {
       .cooking_station = ARCH_STOCK_POT,
       .ingredients = {ARCH_TOMATO_ITEM},
       .n_ingredients = 1,
+  };
+  recipes[2] = {
+      .result = FOOD_pizza_whole,
+      .cooking_station = ARCH_OVEN,
+      .ingredients = {ARCH_TOMATO_ITEM, ARCH_WOOD_ITEM},
+      .n_ingredients = 2,
   };
 }
 
@@ -551,7 +642,7 @@ World* init_world() {
   return world;
 }
 
-bool is_cooking_system(EntityArchetype arch) {
+bool is_cooking_system(EntityID arch) {
   switch (arch) {
     case ARCH_OVEN:
     case ARCH_STOCK_POT:
@@ -668,7 +759,7 @@ int main(void) {
   setup_inventory();
   // :crafting data setup
   setup_crafting_data();
-  define_recipes();
+  setup_recipes();
 
   Camera2D camera = {0};
   setup_camera(&camera);
@@ -726,6 +817,7 @@ int main(void) {
 
       Rectangle rec = get_entity_rec(entity);
       Rectangle selection_rec = expand_rectangle(rec, ENTITY_SELECTION_RADIUS);
+      Rectangle pickup_rec = expand_rectangle(rec, PICKUP_RADIUS);
 
       // :selecting
       if (entity->arch != ARCH_PLAYER) {
@@ -735,6 +827,9 @@ int main(void) {
         }
         if (CheckCollisionPointRec(get_entity_center(player), selection_rec)) {
           world_frame.near_player = entity;
+        }
+        if (CheckCollisionPointRec(get_entity_center(player), pickup_rec)) {
+          world_frame.near_pickup = entity;
         }
       }
 
@@ -823,7 +918,7 @@ int main(void) {
     {
       // UX states like craft and cook depend on being close to certain entity
       if (world_frame.near_player) {
-        EntityArchetype arch = world_frame.near_player->arch;
+        EntityID arch = world_frame.near_player->arch;
         if (world->ux_state != UX_placing) {
           if (arch == ARCH_CRAFT_TABLE) {
             world->ux_state = UX_crafting;
@@ -851,8 +946,8 @@ int main(void) {
 
     // :pickup items
     {
-      if (world_frame.near_player) {
-        Entity* entity_near = world_frame.near_player;
+      if (world_frame.near_pickup) {
+        Entity* entity_near = world_frame.near_pickup;
         if (entity_near->is_valid && entity_near->is_item) {
           // TODO: Pickup animation
           PlaySound(pickup_sound);
@@ -916,16 +1011,14 @@ int main(void) {
         }
         DrawRectangleRec(rec, rec_color);
 
-        if (inventory_item.arch == ARCH_FOOD) {
-          DrawTextureEx(
-              sprites[sprite_id_from_food_id(inventory_item.food_id)].texture,
-              texture_pos, 0, 2.5f, WHITE);
-
-        } else {
-          DrawTextureEx(
-              sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
-              texture_pos, 0, 5, WHITE);
+        float scale = 5.0;
+        if (arch_is_food(inventory_item.arch)) {
+          scale = 2.5;
         }
+        DrawTextureEx(
+            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+            texture_pos, 0, scale, WHITE);
+
         DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
                  text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
@@ -1136,15 +1229,14 @@ int main(void) {
         }
         DrawRectangleRec(rec, rec_color);
 
-        if (inventory_item.arch == ARCH_FOOD) {
-          DrawTextureEx(
-              sprites[sprite_id_from_food_id(inventory_item.food_id)].texture,
-              texture_pos, 0, 2.5f, WHITE);
-        } else {
-          DrawTextureEx(
-              sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
-              texture_pos, 0, 5, WHITE);
+        float scale = 5.0;
+        if (arch_is_food(inventory_item.arch)) {
+          scale = 2.5;
         }
+        DrawTextureEx(
+            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+            texture_pos, 0, scale, WHITE);
+
         DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
                  text_pos.x, text_pos.y + 20, 20, WHITE);
         item_pos++;
@@ -1406,14 +1498,12 @@ FoodID resolve_ingredients(CookingData* data,
 
 Entity* create_food(Entity* cooking_station, Vector2 position) {
   Entity* cooked = entity_create();
-  // TODO: replace this with getting the actual food according to the
-  // ingredients
-
   CookingData* cooking_data = get_cooking_data(cooking_station);
   int n_recipes = (sizeof recipes / sizeof recipes[0]);
   FoodID food_id = resolve_ingredients(cooking_data, recipes, n_recipes);
   SpriteID sprite_id = sprite_id_from_food_id(food_id);
-  cooked->arch = ARCH_FOOD;
+  EntityID arch = arch_from_food_id(food_id);
+  cooked->arch = arch;
   cooked->sprite_id = sprite_id;
   cooked->size = get_sprite_size(sprite_id);
   cooked->position = position;
