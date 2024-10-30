@@ -326,9 +326,11 @@ Sprite sprites[SPRITE_MAX];
 CraftingData crafts[CRAFTING_MAX];
 CookingData cooking_data[COOKING_MAX];
 const WorldResourceData world_resources[] = {
-    {ARCH_TREE, 10.f, 10},        {ARCH_ROCK, 5.f, 12},
-    {ARCH_TOMATO_PLANT, 5.f, 10}, {ARCH_PUMPKIN_PLANT, 10.f, 7},
-    {ARCH_PLANT, 15.f, 10},
+    // {ARCH_TREE, 10.f, 10},
+    {ARCH_ROCK, 5.f, 12},
+    // {ARCH_TOMATO_PLANT, 5.f, 10},
+    // {ARCH_PUMPKIN_PLANT, 10.f, 7},
+    {ARCH_PLANT, 15.f, 12},
 };
 Recipe recipes[100];
 Sound destroy_sound;
