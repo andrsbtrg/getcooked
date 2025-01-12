@@ -616,33 +616,33 @@ void setup_recipes() {
 }
 
 void load_sprites() {
-  load_sprite("/home/andres/projects/game/assets/missing.png", SPRITE_nil);
-  load_sprite("/home/andres/projects/game/assets/player.png", SPRITE_player);
-  load_sprite("/home/andres/projects/game/assets/tree.png", SPRITE_tree);
-  load_sprite("/home/andres/projects/game/assets/rock.png", SPRITE_rock);
-  load_sprite("/home/andres/projects/game/assets/wood.png", SPRITE_wood);
-  load_sprite("/home/andres/projects/game/assets/rock_item.png",
+  load_sprite("assets/missing.png", SPRITE_nil);
+  load_sprite("assets/player.png", SPRITE_player);
+  load_sprite("assets/tree.png", SPRITE_tree);
+  load_sprite("assets/rock.png", SPRITE_rock);
+  load_sprite("assets/wood.png", SPRITE_wood);
+  load_sprite("assets/rock_item.png",
               SPRITE_rock_item);
 
-  load_sprite("/home/andres/projects/game/assets/bush.png", SPRITE_tomato);
-  load_sprite("/home/andres/projects/game/assets/pumpkin.png", SPRITE_pumpkin);
-  load_sprite("/home/andres/projects/game/assets/plant.png", SPRITE_plant);
-  load_sprite("/home/andres/projects/game/assets/soil.png", SPRITE_soil);
-  load_sprite("/home/andres/projects/game/assets/kitchen.png", SPRITE_table);
-  load_sprite("/home/andres/projects/game/assets/tomato_item.png",
+  load_sprite("assets/bush.png", SPRITE_tomato);
+  load_sprite("assets/pumpkin.png", SPRITE_pumpkin);
+  load_sprite("assets/plant.png", SPRITE_plant);
+  load_sprite("assets/soil.png", SPRITE_soil);
+  load_sprite("assets/kitchen.png", SPRITE_table);
+  load_sprite("assets/tomato_item.png",
               SPRITE_tomato_item);
 
-  load_sprite("/home/andres/projects/game/assets/pumpkin_item.png",
+  load_sprite("assets/pumpkin_item.png",
               SPRITE_pumpkin_item);
 
-  load_sprite("/home/andres/projects/game/assets/stock_pot.png",
+  load_sprite("assets/stock_pot.png",
               SPRITE_stock_pot);
-  load_sprite("/home/andres/projects/game/assets/grill.png", SPRITE_grill);
-  load_sprite("/home/andres/projects/game/assets/oven.png", SPRITE_oven);
+  load_sprite("assets/grill.png", SPRITE_grill);
+  load_sprite("assets/oven.png", SPRITE_oven);
 
   for (int i = FOOD_nil; i < FOOD_MAX - 1; i++) {
     const char* filename =
-        TextFormat("/home/andres/projects/game/assets/fnb_sprite/%i.png", i);
+        TextFormat("assets/fnb_sprite/%i.png", i);
     FoodID id = (FoodID)(i + 1);
     load_sprite(filename, sprite_id_from_food_id(id));
   }
