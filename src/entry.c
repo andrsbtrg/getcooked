@@ -1,12 +1,7 @@
-#include <assert.h>
-#include <stdlib.h>
-
-#include <cmath>
-#include <cstddef>
-#include <cstdio>
-
 #include "raylib.h"
 #include "raymath.h"
+#include <stdlib.h>
+// TODO: find an anternative to cassert
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
@@ -321,7 +316,7 @@ typedef enum UX_State {
 
 struct World;
 // :globals
-World* world;
+struct World* world;
 Sprite sprites[SPRITE_MAX];
 CraftingData crafts[CRAFTING_MAX];
 CookingData cooking_data[COOKING_MAX];
@@ -473,7 +468,7 @@ void animate_v2_to_target(Vector2* value,
 Vector2 world_to_tile_v2(Vector2 position, float tile_size) {
   return (Vector2){position.x / tile_size, position.y / tile_size};
 }
-Vector2 round_pos_to_tile(int x, int y, float tile_size = TILE_SIZE) {
+Vector2 round_pos_to_tile(int x, int y, float tile_size) {
   return (Vector2){floor(x / tile_size) * tile_size,
                    floor(y / tile_size) * tile_size};
 }
@@ -492,7 +487,7 @@ Vector2 get_entity_center(Entity* entity) {
 
 void entity_destroy(Entity* entity) {
   entity->is_valid = false;
-  entity = {0};
+  entity = 0;
 }
 
 ArchetypeID get_drop_from(Entity* destroyed) {
@@ -564,7 +559,7 @@ SpriteID get_sprite_id_from_arch(ArchetypeID arch) {
 
   if (arch > ARCH_FOOD_nil && arch < ARCH_FOOD_MAX) {
     int id = arch - ARCH_FOOD_nil;
-    assert(id > 0);
+    // assert(id > 0);
     SpriteID sprite_id = (SpriteID)(id + SPRITE_FOOD_nil);
     return sprite_id;
   }
@@ -599,19 +594,19 @@ inline void setup_inventory() {
 
 void setup_recipes() {
   // :recipes
-  recipes[0] = {
+  recipes[0] =(Recipe){
       .result = FOOD_egg,
       .cooking_station = ARCH_GRILL,
       .ingredients = {ARCH_ROCK_ITEM},
       .n_ingredients = 1,
   };
-  recipes[1] = {
+  recipes[1] = (Recipe){
       .result = FOOD_tomato_soup,
       .cooking_station = ARCH_STOCK_POT,
       .ingredients = {ARCH_TOMATO_ITEM},
       .n_ingredients = 1,
   };
-  recipes[2] = {
+  recipes[2] = (Recipe){
       .result = FOOD_pizza_whole,
       .cooking_station = ARCH_OVEN,
       .ingredients = {ARCH_TOMATO_ITEM, ARCH_WOOD_ITEM},
@@ -663,7 +658,7 @@ Vector2 get_mouse_position() {
 
 World* init_world() {
   World* world = (World*)malloc(sizeof(World));
-  *world = {0};
+  *world = (World){0};
   world->ux_state = UX_nil;
   // for (int i = 0; i < ARRAY_LEN(world->spawn_data); i++) {
   //   world->spawn_data[i] = 0.0f;
@@ -700,19 +695,19 @@ bool action_button_pressed() {
 
 // This is const data and shouldn't change during runtime
 void setup_crafting_data() {
-  crafts[CRAFTING_pot] = {.sprite_id = SPRITE_stock_pot,
+  crafts[CRAFTING_pot] = (CraftingData){.sprite_id = SPRITE_stock_pot,
                           .to_craft = ARCH_STOCK_POT,
                           .time_to_craft = 10.0,
                           .requirements = {rock_item(0), wood_item(0)},
                           .n_requirements = 2};
 
-  crafts[CRAFTING_oven] = {.sprite_id = SPRITE_oven,
+  crafts[CRAFTING_oven] = (CraftingData){.sprite_id = SPRITE_oven,
                            .to_craft = ARCH_OVEN,
                            .time_to_craft = 10.0,
                            .requirements = {rock_item(4)},
                            .n_requirements = 1};
 
-  crafts[CRAFTING_grill] = {.sprite_id = SPRITE_grill,
+  crafts[CRAFTING_grill] = (CraftingData){.sprite_id = SPRITE_grill,
                             .to_craft = ARCH_GRILL,
                             .time_to_craft = 6.0,
                             .requirements = {rock_item(1), wood_item(3)},
@@ -728,7 +723,7 @@ CookingData* cooking_data_create() {
       break;
     }
   }
-  *found = {};
+  *found = (CookingData){0};
   found->is_valid = true;
   return found;
 }
@@ -739,7 +734,7 @@ CookingData* get_cooking_data(Entity* cooking_station) {
     CookingData* c = &cooking_data[i];
     if (c->cooking_on == cooking_station) {
       found = c;
-      assert(c->is_valid);
+      // assert(c->is_valid);
       break;
     }
   }
@@ -800,7 +795,7 @@ int main(void) {
     update_camera(&camera, player, dt);
 
     BeginDrawing();
-    ClearBackground(Color{25, 25, 31, 0});
+    ClearBackground((Color){25, 25, 31, 0});
 
     update_player(player);
     WorldFrame world_frame = {0};
@@ -860,13 +855,12 @@ int main(void) {
         }
         if (GetTime() > world->spawn_data[i]) {
           // spawn the thing
-          fprintf(stdout, "INFO: Spawning: %s\n", get_arch_name(data.arch));
           Entity* item_to_spawn = entity_create();
           int pos_x = GetRandomValue(-100, 100);
           int pos_y = GetRandomValue(-100, 100);
           SpriteID sprite_id = get_sprite_id_from_arch(data.arch);
           item_to_spawn->arch = data.arch;
-          item_to_spawn->position = round_pos_to_tile(pos_x, pos_y);
+          item_to_spawn->position = round_pos_to_tile(pos_x, pos_y, TILE_SIZE);
           item_to_spawn->sprite_id = sprite_id;
           item_to_spawn->health = 2;
           item_to_spawn->is_destroyable = true;
@@ -1003,7 +997,7 @@ int main(void) {
       else if (world->ux_state == UX_crafting ||
                world->ux_state == UX_cooking) {
         world->ux_state = UX_nil;
-        world->holding = {0};
+        world->holding = (ItemData){0};
       }
 
       // handle open and close inventory
@@ -1011,7 +1005,7 @@ int main(void) {
         world->ux_state = UX_inventory;
       } else if (IsKeyPressed(KEY_ESCAPE)) {
         world->ux_state = UX_nil;
-        world->holding = {0};
+        world->holding = (ItemData){0};
       }
     }
 
@@ -1196,7 +1190,7 @@ int main(void) {
             DrawTexturePro(
                 texture,
                 (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-                {ui_origin_x + padding, ui_origin_y + padding + j * icon_size,
+                (Rectangle){ui_origin_x + padding, ui_origin_y + padding + j * icon_size,
                  icon_size, icon_size},
                 v2(0, 0), 0, WHITE);
             DrawText(TextFormat("%i / %i", req.amount, player_has),
@@ -1207,7 +1201,7 @@ int main(void) {
         DrawTexturePro(
             texture,
             (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-            {texture_pos.x, texture_pos.y, icon_rec.width, icon_rec.height},
+            (Rectangle){texture_pos.x, texture_pos.y, icon_rec.width, icon_rec.height},
             v2(0, 0), 0, WHITE);
       }
     }
@@ -1234,7 +1228,7 @@ int main(void) {
         DrawTexturePro(
             texture,
             (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-            {pos.x, pos.y, width, height}, v2(0, 0), 0,
+            (Rectangle){pos.x, pos.y, width, height}, v2(0, 0), 0,
             (Color){255, 255, 255, 124});
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -1294,7 +1288,7 @@ int main(void) {
                 world->holding.amount += 1;
               }
             } else {
-              world->holding = {.amount = 1, .arch = inventory_item.arch};
+              world->holding = (ItemData){.amount = 1, .arch = inventory_item.arch};
             }
           }
         }
@@ -1321,7 +1315,7 @@ int main(void) {
         if (CheckCollisionPointRec(mouse_pos_world,
                                    get_entity_rec(cooking_station))) {
           item_text_color = GREEN;
-          float offset = abs(sin(4 * GetTime()));
+          float offset = fabs(sin(4 * GetTime()));
           scale += offset;
           if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             // place in the kitchen
@@ -1455,7 +1449,7 @@ void setup_camera(Camera2D* camera) {
   int width = GetRenderWidth();
   int height = GetRenderHeight();
   int dpi_scale = GetWindowScaleDPI().x;
-  camera->offset = Vector2{width / 2.0f, height / 2.0f};
+  camera->offset =v2(width / 2.0f, height / 2.0f);
   camera->rotation = 0.0f;
   camera->target = world->entities[0].position;
   camera->zoom = 5 * dpi_scale;
@@ -1463,7 +1457,7 @@ void setup_camera(Camera2D* camera) {
 
 /// Move player
 void update_player(Entity* player) {
-  Vector2 input_axis = Vector2{0.0, 0.0};
+  Vector2 input_axis = v2(0.0, 0.0);
   if (IsKeyDown(KEY_A)) {
     input_axis.x = -1;
   }
@@ -1503,8 +1497,8 @@ Entity* entity_create() {
       break;
     }
   }
-  assert(found);  // "No free entities"
-  *found = {};
+  // assert(found);  // "No free entities"
+  *found = (Entity){0};
   found->is_valid = true;
   return found;
 }
@@ -1583,7 +1577,7 @@ Entity* create_food(Entity* cooking_station, Vector2 position) {
   cooked->is_food = true;
 
   // clean work station data
-  *cooking_data = {};
+  *cooking_data = (CookingData){0};
 
   return cooked;
 }
@@ -1671,7 +1665,10 @@ Sprite load_sprite(const char* path, SpriteID id) {
   if (image.data != NULL) {
     Texture2D texture = LoadTextureFromImage(image);
     UnloadImage(image);
-    sprites[id] = Sprite{texture = texture, id = id};
+    sprites[id] = (Sprite) {
+        .texture = texture, 
+        .id=id
+    };
     return sprites[id];
   }
   return sprites[SPRITE_nil];
