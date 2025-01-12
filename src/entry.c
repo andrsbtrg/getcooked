@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #include <stdlib.h>
+#include <math.h>
 // TODO: find an anternative to cassert
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
@@ -242,15 +243,15 @@ typedef struct ItemData {
   FoodID food_id;
 } ItemData;
 
-inline ItemData rock_item(int amount) {
+static inline ItemData rock_item(int amount) {
   return (ItemData){.amount = amount, .arch = ARCH_ROCK_ITEM};
 }
 
-inline ItemData wood_item(int amount) {
+static inline ItemData wood_item(int amount) {
   return (ItemData){.amount = amount, .arch = ARCH_WOOD_ITEM};
 }
 
-inline bool arch_is_food(ArchetypeID arch) {
+static inline bool arch_is_food(ArchetypeID arch) {
   return (arch > ARCH_FOOD_nil && arch < ARCH_FOOD_MAX);
 }
 
@@ -355,11 +356,11 @@ typedef struct WorldFrame {
   Entity* near_pickup;
 } WorldFrame;
 
-inline Vector2 v2(float x, float y) {
+static inline Vector2 v2(float x, float y) {
   return (Vector2){x, y};
 }
 
-inline Rectangle expand_rectangle(Rectangle rec, float offset) {
+static inline Rectangle expand_rectangle(Rectangle rec, float offset) {
   return (Rectangle){
       rec.x -= offset * 0.5,
       rec.y -= offset * 0.5,
@@ -368,7 +369,7 @@ inline Rectangle expand_rectangle(Rectangle rec, float offset) {
   };
 }
 
-inline Rectangle get_entity_rec(Entity* entity) {
+static inline Rectangle get_entity_rec(Entity* entity) {
   return (Rectangle){entity->position.x, entity->position.y, entity->size.x,
                      entity->size.y};
 }
@@ -583,7 +584,7 @@ Entity* create_item_drop(Entity* destroyed) {
   return item;
 }
 
-inline void setup_inventory() {
+void setup_inventory() {
   for (int i = 0; i < ARCH_MAX; i++) {
     ItemData* idata = &world->inventory_items[i];
     ArchetypeID arch = (ArchetypeID)i;
