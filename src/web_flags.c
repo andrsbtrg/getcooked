@@ -1,0 +1,1 @@
+#define PLATFORM_WEB 1

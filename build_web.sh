@@ -1,5 +1,6 @@
 #!/bin/sh
 emcc -o web/game.html src/entry.c \
+	src/web_flags.c \
 	-Os -Wall ./raylib/lib/web/libraylib.a \
 	-I. -Iraylib/include \
 	-L. \

@@ -2,7 +2,6 @@
 #include "raymath.h"
 #include <stdlib.h>
 #include <math.h>
-// TODO: find an anternative to cassert
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
@@ -438,6 +437,16 @@ const char* get_arch_name(ArchetypeID arch) {
   };
 }
 
+
+static inline int get_dpi_scale(){
+  #if PLATFORM_WEB
+  return 1;
+  #else
+  return GetWindowScaleDPI().x;
+  #endif
+}
+
+
 Entity* entity_create();
 Entity* create_food(Entity* cooking_station, Vector2 position);
 Sprite load_sprite(const char* path, SpriteID id);
@@ -651,7 +660,7 @@ void load_sprites() {
 Vector2 get_mouse_position() {
   Vector2 mouse_pos_screen = GetMousePosition();
   // Apply DPI scaling to the mouse position
-  int dpi_scale = GetWindowScaleDPI().x;
+  int dpi_scale = get_dpi_scale();
   mouse_pos_screen.x = mouse_pos_screen.x * dpi_scale;
   mouse_pos_screen.y = mouse_pos_screen.y * dpi_scale;
   return mouse_pos_screen;
@@ -1217,8 +1226,7 @@ int main(void) {
         CraftingData craft = crafts[world->placing];
         Texture texture = sprites[craft.sprite_id].texture;
 
-        int world_factor = camera.zoom / GetWindowScaleDPI().x;
-
+        int world_factor = camera.zoom / get_dpi_scale();
         // the tile size on this case is on Screen space size
         float tile_size = TILE_SIZE * world_factor;
         Vector2 pos = round_pos_to_tile(mouse_pos_screen.x, mouse_pos_screen.y,
@@ -1449,7 +1457,7 @@ void init_entities() {
 void setup_camera(Camera2D* camera) {
   int width = GetRenderWidth();
   int height = GetRenderHeight();
-  int dpi_scale = GetWindowScaleDPI().x;
+  int dpi_scale = get_dpi_scale();
   camera->offset =v2(width / 2.0f, height / 2.0f);
   camera->rotation = 0.0f;
   camera->target = world->entities[0].position;
@@ -1618,7 +1626,7 @@ Matrix get_camera_2d_mat(Camera2D camera) {
  */
 Vector2 v2_screen_to_world(Vector2 screenPos, Camera2D camera) {
   // Get DPI scaling for the window (if using high-DPI mode)
-  int dpi = GetWindowScaleDPI().x;
+  int dpi = get_dpi_scale();
 
   // Adjust screen coordinates for DPI scaling
   screenPos.x *= dpi;
