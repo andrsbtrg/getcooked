@@ -2,8 +2,12 @@
 #include "raymath.h"
 #include <stdlib.h>
 #include <math.h>
+#if defined(PLATFORM_WEB)
+#include <emscripten/emscripten.h>
+#endif
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
+
 
 typedef enum ArchetypeID {
   ARCH_NIL,
@@ -333,6 +337,8 @@ Sound pickup_sound;
 
 int ScreenWidth = 800;
 int ScreenHeight = 600;
+Camera2D* camera;
+Entity* player;
 
 // :consts
 
@@ -439,7 +445,7 @@ const char* get_arch_name(ArchetypeID arch) {
 
 
 static inline int get_dpi_scale(){
-  #if PLATFORM_WEB
+  #if defined(PLATFORM_WEB)
   return 1;
   #else
   return GetWindowScaleDPI().x;
@@ -453,7 +459,7 @@ Sprite load_sprite(const char* path, SpriteID id);
 void init_entities();
 void update_player(Entity* player);
 void setup_window(void);
-void setup_camera(Camera2D*);
+Camera2D* setup_camera();
 void update_camera(Camera2D*, Entity*, float dt);
 void unload_textures();
 
@@ -770,6 +776,8 @@ bool cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
   return false;
 }
 
+void update_draw_frame(void);
+
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -780,14 +788,13 @@ int main(void) {
   SetExitKey(0);
 
   InitAudioDevice();
-  destroy_sound = LoadSound("/home/andres/projects/game/assets/61_Hit_03.wav");
-  pickup_sound =
-      LoadSound("/home/andres/projects/game/assets/001_Hover_01.wav");
+  destroy_sound = LoadSound("assets/61_Hit_03.wav");
+  pickup_sound = LoadSound("assets/001_Hover_01.wav");
 
   load_sprites();
   init_entities();
 
-  Entity* player = &world->entities[0];
+  player = &world->entities[0];
 
   // :inventory setup
   setup_inventory();
@@ -795,14 +802,33 @@ int main(void) {
   setup_crafting_data();
   setup_recipes();
 
-  Camera2D camera = {0};
-  setup_camera(&camera);
+  camera = setup_camera();
 
+  #if defined(PLATFORM_WEB)
+  emscripten_set_main_loop(update_draw_frame, 0, 1);
+  #else
   SetTargetFPS(60);
 
   while (!WindowShouldClose()) {
+    update_draw_frame();
+  }
+
+  #endif
+
+  unload_textures();
+  UnloadSound(destroy_sound);
+  UnloadSound(pickup_sound);
+
+  free(world);
+  CloseAudioDevice();
+  CloseWindow();
+
+  return 0;
+}
+
+void update_draw_frame() {
     float dt = GetFrameTime();
-    update_camera(&camera, player, dt);
+    update_camera(camera, player, dt);
 
     BeginDrawing();
     ClearBackground((Color){25, 25, 31, 0});
@@ -812,9 +838,9 @@ int main(void) {
 
     Vector2 mouse_pos_screen = get_mouse_position();
 
-    Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, camera);
+    Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, *camera);
 
-    BeginMode2D(camera);
+    BeginMode2D(*camera);
 
     // :tile rendering
     {
@@ -1226,7 +1252,7 @@ int main(void) {
         CraftingData craft = crafts[world->placing];
         Texture texture = sprites[craft.sprite_id].texture;
 
-        int world_factor = camera.zoom / get_dpi_scale();
+        int world_factor = camera->zoom / get_dpi_scale();
         // the tile size on this case is on Screen space size
         float tile_size = TILE_SIZE * world_factor;
         Vector2 pos = round_pos_to_tile(mouse_pos_screen.x, mouse_pos_screen.y,
@@ -1359,17 +1385,7 @@ int main(void) {
       DrawFPS(0, 0);
     }
     EndDrawing();
-  }
-
-  unload_textures();
-  UnloadSound(destroy_sound);
-  UnloadSound(pickup_sound);
-
-  free(world);
-  CloseAudioDevice();
-  CloseWindow();
-
-  return 0;
+  return;
 }
 
 /*
@@ -1454,14 +1470,16 @@ void init_entities() {
   return;
 }
 
-void setup_camera(Camera2D* camera) {
+Camera2D* setup_camera() {
+  Camera2D* camera2d = (Camera2D*)malloc(sizeof(Camera2D));
   int width = GetRenderWidth();
   int height = GetRenderHeight();
   int dpi_scale = get_dpi_scale();
-  camera->offset =v2(width / 2.0f, height / 2.0f);
-  camera->rotation = 0.0f;
-  camera->target = world->entities[0].position;
-  camera->zoom = 5 * dpi_scale;
+  camera2d->offset =v2(width / 2.0f, height / 2.0f);
+  camera2d->rotation = 0.0f;
+  camera2d->target = world->entities[0].position;
+  camera2d->zoom = 5 * dpi_scale;
+  return camera2d;
 }
 
 /// Move player
