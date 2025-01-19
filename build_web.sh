@@ -9,6 +9,7 @@ emcc -o web/game.html src/entry.c \
 	-Iraylib/include/rlgl.h \
 	-s USE_GLFW=3 \
 	-s ASYNCIFY \
+	-Wall \
 	--shell-file $HOME/src/raylib/src/minshell.html \
 	-DPLATFORM_WEB \
 	--preload-file assets

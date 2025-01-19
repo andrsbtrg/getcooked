@@ -1,1 +1,1 @@
-#define PLATFORM_WEB
+#define PLATFORM_WEB 1
