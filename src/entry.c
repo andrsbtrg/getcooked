@@ -831,7 +831,7 @@ void update_draw_frame() {
     update_camera(camera, player, dt);
 
     BeginDrawing();
-    ClearBackground((Color){25, 25, 31, 0});
+    ClearBackground((Color){106, 118, 63});
 
     update_player(player);
     WorldFrame world_frame = {0};
@@ -859,7 +859,7 @@ void update_draw_frame() {
           }
           // draw checkerboard
           if (abs(j % 2) == abs(i % 2)) {
-            DrawRectangleRec(rec, (Color){255, 255, 255, 10});
+            DrawRectangleRec(rec, (Color){47, 60, 2, 30});
           }
         }
       }
