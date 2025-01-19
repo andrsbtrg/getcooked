@@ -224,20 +224,20 @@ typedef struct Sprite {
 } Sprite;
 
 typedef struct Entity {
+  Vector2 position;
+  Vector2 size;
+  SpriteID sprite_id;
+  ArchetypeID arch;
+  FoodID food_id;
+  float cooking_endtime;
+  int health;
   bool is_valid;
   bool is_destroyable;
   bool is_item;
   bool is_food;
   bool render_sprite;
-  SpriteID sprite_id;
-  ArchetypeID arch;
-  Vector2 position;
-  Vector2 size;
-  int health;
   bool is_cookware;
   bool currently_cooking;
-  float cooking_endtime;
-  FoodID food_id;
 } Entity;
 
 typedef struct ItemData {
