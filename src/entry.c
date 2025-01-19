@@ -343,8 +343,8 @@ Entity* player;
 // :consts
 
 const float TILE_SIZE = 8.0f;
-const float ENTITY_SELECTION_RADIUS = 12;
-const float PICKUP_RADIUS = 8;
+const float ENTITY_SELECTION_RADIUS = 8.0;
+const float PICKUP_RADIUS = 8.0;
 #define MAX_ENTITIES 1024
 typedef struct World {
   Entity entities[MAX_ENTITIES];
