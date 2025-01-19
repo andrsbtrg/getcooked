@@ -781,6 +781,17 @@ void draw_shadow(Entity* entity, Rectangle rec) {
               shadow_color);
 }
 
+void draw_shadow_float(Entity* entity, Rectangle rec, float offset) {
+  // Draw shadow
+  Color shadow_color = {10, 10, 10, 100};
+  float shadow_width = (0.4 * rec.width) - 0.5 * offset;
+  Vector2 shadow_pos = v2(entity->position.x + (entity->size.x * 0.5),
+                          entity->position.y + entity->size.y);
+
+  DrawEllipse(shadow_pos.x, shadow_pos.y, shadow_width, shadow_width * 0.4,
+              shadow_color);
+}
+
 void update_draw_frame(void);
 
 int main(void) {
@@ -983,7 +994,6 @@ void update_draw_frame() {
           break;
         }
         default: {
-          draw_shadow(entity, rec);
           Color tile_color = {0};
           if (entity == world_frame.selected) {
             tile_color = (Color){255, 255, 255, 50};
@@ -991,6 +1001,7 @@ void update_draw_frame() {
           if (entity == world_frame.near_player) {
             tile_color = (Color){255, 0, 0, 50};
           }
+
           DrawRectangleRec(rec, tile_color);
           if (entity->is_item) {
             // float
@@ -1000,9 +1011,12 @@ void update_draw_frame() {
             if (entity->is_food) {
               scale = 0.5f;
             }
+
+            draw_shadow_float(entity, rec, offset);
             DrawTextureEx(sprites[entity->sprite_id].texture, pos, 0, scale,
                           WHITE);
           } else {
+            draw_shadow(entity, rec);
             DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                          WHITE);
           }
@@ -1017,6 +1031,10 @@ void update_draw_frame() {
         }
       }
     }
+    // player shadow
+
+    Rectangle player_rec = get_entity_rec(player);
+    draw_shadow(player, player_rec);
     // :render player
     DrawTextureV(sprites[player->sprite_id].texture, player->position, WHITE);
   }
