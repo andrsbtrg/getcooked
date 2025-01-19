@@ -1,13 +1,12 @@
+#include <math.h>
+#include <stdlib.h>
 #include "raylib.h"
 #include "raymath.h"
-#include <stdlib.h>
-#include <math.h>
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
-
 
 typedef enum ArchetypeID {
   ARCH_NIL,
@@ -443,15 +442,13 @@ const char* get_arch_name(ArchetypeID arch) {
   };
 }
 
-
-static inline int get_dpi_scale(){
-  #if defined(PLATFORM_WEB)
+static inline int get_dpi_scale() {
+#if defined(PLATFORM_WEB)
   return 1;
-  #else
+#else
   return GetWindowScaleDPI().x;
-  #endif
+#endif
 }
-
 
 Entity* entity_create();
 Entity* create_food(Entity* cooking_station, Vector2 position);
@@ -610,7 +607,7 @@ void setup_inventory() {
 
 void setup_recipes() {
   // :recipes
-  recipes[0] =(Recipe){
+  recipes[0] = (Recipe){
       .result = FOOD_egg,
       .cooking_station = ARCH_GRILL,
       .ingredients = {ARCH_ROCK_ITEM},
@@ -636,28 +633,23 @@ void load_sprites() {
   load_sprite("assets/tree.png", SPRITE_tree);
   load_sprite("assets/rock.png", SPRITE_rock);
   load_sprite("assets/wood.png", SPRITE_wood);
-  load_sprite("assets/rock_item.png",
-              SPRITE_rock_item);
+  load_sprite("assets/rock_item.png", SPRITE_rock_item);
 
   load_sprite("assets/bush.png", SPRITE_tomato);
   load_sprite("assets/pumpkin.png", SPRITE_pumpkin);
   load_sprite("assets/plant.png", SPRITE_plant);
   load_sprite("assets/soil.png", SPRITE_soil);
   load_sprite("assets/kitchen.png", SPRITE_table);
-  load_sprite("assets/tomato_item.png",
-              SPRITE_tomato_item);
+  load_sprite("assets/tomato_item.png", SPRITE_tomato_item);
 
-  load_sprite("assets/pumpkin_item.png",
-              SPRITE_pumpkin_item);
+  load_sprite("assets/pumpkin_item.png", SPRITE_pumpkin_item);
 
-  load_sprite("assets/stock_pot.png",
-              SPRITE_stock_pot);
+  load_sprite("assets/stock_pot.png", SPRITE_stock_pot);
   load_sprite("assets/grill.png", SPRITE_grill);
   load_sprite("assets/oven.png", SPRITE_oven);
 
   for (int i = FOOD_nil; i < FOOD_MAX - 1; i++) {
-    const char* filename =
-        TextFormat("assets/fnb_sprite/%i.png", i);
+    const char* filename = TextFormat("assets/fnb_sprite/%i.png", i);
     FoodID id = (FoodID)(i + 1);
     load_sprite(filename, sprite_id_from_food_id(id));
   }
@@ -711,23 +703,25 @@ bool action_button_pressed() {
 
 // This is const data and shouldn't change during runtime
 void setup_crafting_data() {
-  crafts[CRAFTING_pot] = (CraftingData){.sprite_id = SPRITE_stock_pot,
-                          .to_craft = ARCH_STOCK_POT,
-                          .time_to_craft = 10.0,
-                          .requirements = {rock_item(0), wood_item(0)},
-                          .n_requirements = 2};
+  crafts[CRAFTING_pot] =
+      (CraftingData){.sprite_id = SPRITE_stock_pot,
+                     .to_craft = ARCH_STOCK_POT,
+                     .time_to_craft = 10.0,
+                     .requirements = {rock_item(0), wood_item(0)},
+                     .n_requirements = 2};
 
   crafts[CRAFTING_oven] = (CraftingData){.sprite_id = SPRITE_oven,
-                           .to_craft = ARCH_OVEN,
-                           .time_to_craft = 10.0,
-                           .requirements = {rock_item(4)},
-                           .n_requirements = 1};
+                                         .to_craft = ARCH_OVEN,
+                                         .time_to_craft = 10.0,
+                                         .requirements = {rock_item(4)},
+                                         .n_requirements = 1};
 
-  crafts[CRAFTING_grill] = (CraftingData){.sprite_id = SPRITE_grill,
-                            .to_craft = ARCH_GRILL,
-                            .time_to_craft = 6.0,
-                            .requirements = {rock_item(1), wood_item(3)},
-                            .n_requirements = 2};
+  crafts[CRAFTING_grill] =
+      (CraftingData){.sprite_id = SPRITE_grill,
+                     .to_craft = ARCH_GRILL,
+                     .time_to_craft = 6.0,
+                     .requirements = {rock_item(1), wood_item(3)},
+                     .n_requirements = 2};
 }
 
 CookingData* cooking_data_create() {
@@ -776,6 +770,17 @@ bool cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
   return false;
 }
 
+void draw_shadow(Entity* entity, Rectangle rec) {
+  // Draw shadow
+  Color shadow_color = {10, 10, 10, 100};
+  float shadow_width = 0.5 * rec.width;
+  Vector2 shadow_pos = v2(entity->position.x + (entity->size.x * 0.5),
+                          entity->position.y + entity->size.y);
+
+  DrawEllipse(shadow_pos.x, shadow_pos.y, shadow_width, shadow_width * 0.4,
+              shadow_color);
+}
+
 void update_draw_frame(void);
 
 int main(void) {
@@ -804,16 +809,16 @@ int main(void) {
 
   camera = setup_camera();
 
-  #if defined(PLATFORM_WEB)
+#if defined(PLATFORM_WEB)
   emscripten_set_main_loop(update_draw_frame, 0, 1);
-  #else
+#else
   SetTargetFPS(60);
 
   while (!WindowShouldClose()) {
     update_draw_frame();
   }
 
-  #endif
+#endif
 
   unload_textures();
   UnloadSound(destroy_sound);
@@ -827,86 +832,137 @@ int main(void) {
 }
 
 void update_draw_frame() {
-    float dt = GetFrameTime();
-    update_camera(camera, player, dt);
+  float dt = GetFrameTime();
+  update_camera(camera, player, dt);
 
-    BeginDrawing();
-    ClearBackground((Color){106, 118, 63});
+  BeginDrawing();
+  ClearBackground((Color){106, 118, 63});
 
-    update_player(player);
-    WorldFrame world_frame = {0};
+  update_player(player);
+  WorldFrame world_frame = {0};
 
-    Vector2 mouse_pos_screen = get_mouse_position();
+  Vector2 mouse_pos_screen = get_mouse_position();
 
-    Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, *camera);
+  Vector2 mouse_pos_world = v2_screen_to_world(mouse_pos_screen, *camera);
 
-    BeginMode2D(*camera);
+  BeginMode2D(*camera);
 
-    // :tile rendering
-    {
-      Vector2 player_pos_tile = world_to_tile_v2(player->position, TILE_SIZE);
-      int tile_radius_x = 13;
-      int tile_radius_y = 10;
-      for (int i = player_pos_tile.x - tile_radius_x;
-           i < player_pos_tile.x + tile_radius_x; i++) {
-        for (int j = player_pos_tile.y - tile_radius_y;
-             j < player_pos_tile.y + tile_radius_y; j++) {
-          Rectangle rec = {TILE_SIZE * i, TILE_SIZE * j, TILE_SIZE, TILE_SIZE};
+  // :tile rendering
+  {
+    Vector2 player_pos_tile = world_to_tile_v2(player->position, TILE_SIZE);
+    int tile_radius_x = 13;
+    int tile_radius_y = 10;
+    for (int i = player_pos_tile.x - tile_radius_x;
+         i < player_pos_tile.x + tile_radius_x; i++) {
+      for (int j = player_pos_tile.y - tile_radius_y;
+           j < player_pos_tile.y + tile_radius_y; j++) {
+        Rectangle rec = {TILE_SIZE * i, TILE_SIZE * j, TILE_SIZE, TILE_SIZE};
 
-          // draw tile when hovered with mouse
-          if (CheckCollisionPointRec(mouse_pos_world, rec)) {
-            DrawRectangleLinesEx(rec, 0.5f, (Color){255, 255, 255, 100});
-          }
-          // draw checkerboard
-          if (abs(j % 2) == abs(i % 2)) {
-            DrawRectangleRec(rec, (Color){47, 60, 2, 30});
-          }
+        // draw tile when hovered with mouse
+        if (CheckCollisionPointRec(mouse_pos_world, rec)) {
+          DrawRectangleLinesEx(rec, 0.5f, (Color){255, 255, 255, 100});
+        }
+        // draw checkerboard
+        if (abs(j % 2) == abs(i % 2)) {
+          DrawRectangleRec(rec, (Color){47, 60, 2, 30});
         }
       }
     }
+  }
 
-    // :spawn resources
-    {
-      for (int i = 0; i < ARRAY_LEN(world_resources); i++) {
-        WorldResourceData data = world_resources[i];
+  // :spawn resources
+  {
+    for (int i = 0; i < ARRAY_LEN(world_resources); i++) {
+      WorldResourceData data = world_resources[i];
 
-        // TODO: replace with count state to avoid counting each frame
-        int entity_count = 0;
-        for (int x = 0; x < MAX_ENTITIES; x++) {
-          Entity* e = &world->entities[x];
-          if (e->arch == data.arch) {
-            entity_count += 1;
-          }
+      // TODO: replace with count state to avoid counting each frame
+      int entity_count = 0;
+      for (int x = 0; x < MAX_ENTITIES; x++) {
+        Entity* e = &world->entities[x];
+        if (e->arch == data.arch) {
+          entity_count += 1;
         }
+      }
 
-        if (entity_count >= data.max_count) {
-          continue;
-        }
+      if (entity_count >= data.max_count) {
+        continue;
+      }
 
-        // setup spawn timer
-        if (almost_equals(0.0, world->spawn_data[i], 0.01)) {
-          if (entity_count < data.max_count) {
-            world->spawn_data[i] = GetTime() + data.spawn_interval;
-          }
+      // setup spawn timer
+      if (almost_equals(0.0, world->spawn_data[i], 0.01)) {
+        if (entity_count < data.max_count) {
+          world->spawn_data[i] = GetTime() + data.spawn_interval;
         }
-        if (GetTime() > world->spawn_data[i]) {
-          // spawn the thing
-          Entity* item_to_spawn = entity_create();
-          int pos_x = GetRandomValue(-100, 100);
-          int pos_y = GetRandomValue(-100, 100);
-          SpriteID sprite_id = get_sprite_id_from_arch(data.arch);
-          item_to_spawn->arch = data.arch;
-          item_to_spawn->position = round_pos_to_tile(pos_x, pos_y, TILE_SIZE);
-          item_to_spawn->sprite_id = sprite_id;
-          item_to_spawn->health = 2;
-          item_to_spawn->is_destroyable = true;
-          item_to_spawn->size = get_sprite_size(sprite_id);
-          world->spawn_data[i] = 0.0;
-        }
+      }
+      if (GetTime() > world->spawn_data[i]) {
+        // spawn the thing
+        Entity* item_to_spawn = entity_create();
+        int pos_x = GetRandomValue(-100, 100);
+        int pos_y = GetRandomValue(-100, 100);
+        SpriteID sprite_id = get_sprite_id_from_arch(data.arch);
+        item_to_spawn->arch = data.arch;
+        item_to_spawn->position = round_pos_to_tile(pos_x, pos_y, TILE_SIZE);
+        item_to_spawn->sprite_id = sprite_id;
+        item_to_spawn->health = 2;
+        item_to_spawn->is_destroyable = true;
+        item_to_spawn->size = get_sprite_size(sprite_id);
+        world->spawn_data[i] = 0.0;
+      }
+    }
+  }
+
+  // :loop update all entities
+  for (int i = 0; i < MAX_ENTITIES; i++) {
+    Entity* entity = &world->entities[i];
+    if (NULL == entity) {
+      continue;
+    }
+    if (!entity->is_valid) {
+      continue;
+    }
+
+    Rectangle rec = get_entity_rec(entity);
+    Rectangle selection_rec = expand_rectangle(rec, ENTITY_SELECTION_RADIUS);
+    Rectangle pickup_rec = expand_rectangle(rec, PICKUP_RADIUS);
+
+    // :selecting
+    if (entity->arch != ARCH_PLAYER) {
+      if (CheckCollisionPointRec(mouse_pos_world, selection_rec)) {
+        if (!world_frame.selected)
+          world_frame.selected = entity;
+      }
+      if (CheckCollisionPointRec(get_entity_center(player), selection_rec)) {
+        world_frame.near_player = entity;
+      }
+      if (CheckCollisionPointRec(get_entity_center(player), pickup_rec)) {
+        world_frame.near_pickup = entity;
       }
     }
 
-    // :loop update all entities
+    // :cooking time
+    if (entity->is_cookware) {
+      if (entity->currently_cooking) {
+        // setup timer
+        if (entity->cooking_endtime == 0) {
+          entity->cooking_endtime =
+              GetTime() + crafts[world->placing].time_to_craft;
+        }
+        // cook the thing
+        if (GetTime() > entity->cooking_endtime) {
+          Vector2 pos = round_pos_to_tile(
+              entity->position.x, entity->position.y - TILE_SIZE, TILE_SIZE);
+
+          create_food(entity, pos);
+
+          entity->currently_cooking = false;
+          entity->cooking_endtime = 0;
+        }
+      }
+    }
+  }
+
+  // :rendering
+  {
     for (int i = 0; i < MAX_ENTITIES; i++) {
       Entity* entity = &world->entities[i];
       if (NULL == entity) {
@@ -917,472 +973,422 @@ void update_draw_frame() {
       }
 
       Rectangle rec = get_entity_rec(entity);
-      Rectangle selection_rec = expand_rectangle(rec, ENTITY_SELECTION_RADIUS);
-      Rectangle pickup_rec = expand_rectangle(rec, PICKUP_RADIUS);
-
-      // :selecting
-      if (entity->arch != ARCH_PLAYER) {
-        if (CheckCollisionPointRec(mouse_pos_world, selection_rec)) {
-          if (!world_frame.selected)
-            world_frame.selected = entity;
-        }
-        if (CheckCollisionPointRec(get_entity_center(player), selection_rec)) {
-          world_frame.near_player = entity;
-        }
-        if (CheckCollisionPointRec(get_entity_center(player), pickup_rec)) {
-          world_frame.near_pickup = entity;
-        }
+      if (entity->is_food) {
+        rec = (Rectangle){rec.x, rec.y, rec.width / 2, rec.height / 2};
       }
 
-      // :cooking time
-      if (entity->is_cookware) {
-        if (entity->currently_cooking) {
-          // setup timer
-          if (entity->cooking_endtime == 0) {
-            entity->cooking_endtime =
-                GetTime() + crafts[world->placing].time_to_craft;
+      // :rendering
+      switch (entity->arch) {
+        case ARCH_PLAYER: {
+          break;
+        }
+        default: {
+          draw_shadow(entity, rec);
+          Color tile_color = {0};
+          if (entity == world_frame.selected) {
+            tile_color = (Color){255, 255, 255, 50};
           }
-          // cook the thing
-          if (GetTime() > entity->cooking_endtime) {
-            Vector2 pos = round_pos_to_tile(
-                entity->position.x, entity->position.y - TILE_SIZE, TILE_SIZE);
-
-            create_food(entity, pos);
-
-            entity->currently_cooking = false;
-            entity->cooking_endtime = 0;
+          if (entity == world_frame.near_player) {
+            tile_color = (Color){255, 0, 0, 50};
           }
+          DrawRectangleRec(rec, tile_color);
+          if (entity->is_item) {
+            // float
+            float offset = sin(4 * GetTime());
+            Vector2 pos = v2(entity->position.x, entity->position.y + offset);
+            float scale = 1.0;
+            if (entity->is_food) {
+              scale = 0.5f;
+            }
+            DrawTextureEx(sprites[entity->sprite_id].texture, pos, 0, scale,
+                          WHITE);
+          } else {
+            DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
+                         WHITE);
+          }
+          // draw cooking effects
+          if (entity->is_cookware && entity->currently_cooking) {
+            double time_left = entity->cooking_endtime - GetTime();
+            DrawText(TextFormat("%i", (int)ceil(time_left)), entity->position.x,
+                     entity->position.y, 2, WHITE);
+          }
+
+          break;
         }
       }
     }
+    // :render player
+    DrawTextureV(sprites[player->sprite_id].texture, player->position, WHITE);
+  }
 
-    // :rendering
-    {
-      for (int i = 0; i < MAX_ENTITIES; i++) {
-        Entity* entity = &world->entities[i];
-        if (NULL == entity) {
-          continue;
-        }
-        if (!entity->is_valid) {
-          continue;
-        }
-
-        Rectangle rec = get_entity_rec(entity);
-        if (entity->is_food) {
-          rec = (Rectangle){rec.x, rec.y, rec.width / 2, rec.height / 2};
-        }
-
-        // :rendering
-        switch (entity->arch) {
-          case ARCH_PLAYER: {
-            break;
-          }
-          default: {
-            Color tile_color = {0};
-            if (entity == world_frame.selected) {
-              tile_color = (Color){255, 255, 255, 50};
-            }
-            if (entity == world_frame.near_player) {
-              tile_color = (Color){255, 0, 0, 50};
-            }
-            DrawRectangleRec(rec, tile_color);
-            if (entity->is_item) {
-              // float
-              float offset = sin(4 * GetTime());
-              Vector2 pos = v2(entity->position.x, entity->position.y + offset);
-              float scale = 1.0;
-              if (entity->is_food) {
-                scale = 0.5f;
-              }
-              DrawTextureEx(sprites[entity->sprite_id].texture, pos, 0, scale,
-                            WHITE);
-            } else {
-              DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
-                           WHITE);
-            }
-            // draw cooking effects
-            if (entity->is_cookware && entity->currently_cooking) {
-              double time_left = entity->cooking_endtime - GetTime();
-              DrawText(TextFormat("%i", (int)ceil(time_left)),
-                       entity->position.x, entity->position.y, 2, WHITE);
-            }
-            break;
-          }
+  // :ux_state detection
+  {
+    // UX states like craft and cook depend on being close to certain entity
+    if (world_frame.near_player) {
+      ArchetypeID arch = world_frame.near_player->arch;
+      if (world->ux_state != UX_placing) {
+        if (arch == ARCH_CRAFT_TABLE) {
+          world->ux_state = UX_crafting;
+        } else if (is_cooking_system(arch)) {
+          world->ux_state = UX_cooking;
         }
       }
-
-      // :render player
-      DrawTextureV(sprites[player->sprite_id].texture, player->position, WHITE);
+    }
+    // closes UX states that depend on being close to an entity
+    // if we are not close to any entity
+    else if (world->ux_state == UX_crafting || world->ux_state == UX_cooking) {
+      world->ux_state = UX_nil;
+      world->holding = (ItemData){0};
     }
 
-    // :ux_state detection
-    {
-      // UX states like craft and cook depend on being close to certain entity
+    // handle open and close inventory
+    if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) {
+      world->ux_state = UX_inventory;
+    } else if (IsKeyPressed(KEY_ESCAPE)) {
+      world->ux_state = UX_nil;
+      world->holding = (ItemData){0};
+    }
+  }
+
+  // :pickup items
+  {
+    if (world_frame.near_pickup) {
+      Entity* entity_near = world_frame.near_pickup;
+      if (entity_near->is_valid && entity_near->is_item) {
+        // TODO: Pickup animation
+        PlaySound(pickup_sound);
+
+        world->inventory_items[entity_near->arch].amount += 1;
+        if (entity_near->is_food) {
+          world->inventory_items[entity_near->arch].food_id =
+              entity_near->food_id;
+        }
+        entity_destroy(entity_near);
+      }
+    }
+  }
+
+  // :clicking
+  {
+    if (world->ux_state == UX_nil && action_button_pressed()) {
+      Entity* target = NULL;
+      // If there are selected item and item near player
+      // it will prefer to destroy the item near player
       if (world_frame.near_player) {
-        ArchetypeID arch = world_frame.near_player->arch;
-        if (world->ux_state != UX_placing) {
-          if (arch == ARCH_CRAFT_TABLE) {
-            world->ux_state = UX_crafting;
-          } else if (is_cooking_system(arch)) {
-            world->ux_state = UX_cooking;
-          }
+        target = world_frame.near_player;
+      } else if (world_frame.selected) {
+        target = world_frame.selected;
+      }
+      if (target && target->is_destroyable) {
+        PlaySound(destroy_sound);
+        // :destroy
+        target->health--;
+        if (target->health <= 0) {
+          create_item_drop(target);
+          entity_destroy(target);
         }
       }
-      // closes UX states that depend on being close to an entity
-      // if we are not close to any entity
-      else if (world->ux_state == UX_crafting ||
-               world->ux_state == UX_cooking) {
+    }
+  }
+
+  EndMode2D();
+
+  // :ui quick access
+  if (world->ux_state == UX_nil) {
+    int item_pos = 0;
+    for (int i = 0; i < ARCH_MAX; i++) {
+      ItemData inventory_item = world->inventory_items[i];
+      if (inventory_item.amount == 0)
+        continue;
+      Vector2 texture_pos =
+          v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
+      Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
+
+      Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
+
+      Color rec_color = (Color){245, 245, 245, 50};
+      if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
+        float offset = 4 + sin(4 * GetTime());
+        texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+        rec_color = GOLD;
+        rec_color.a = 50;
+        DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
+                 text_pos.y - 20, 18, WHITE);
+      }
+      DrawRectangleRec(rec, rec_color);
+
+      float scale = 5.0;
+      if (arch_is_food(inventory_item.arch)) {
+        scale = 2.5;
+      }
+      DrawTextureEx(
+          sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+          texture_pos, 0, scale, WHITE);
+
+      DrawText(TextFormat("[%i]", world->inventory_items[i].amount), text_pos.x,
+               text_pos.y + 20, 20, WHITE);
+      item_pos++;
+    }
+  }
+  // :ui inventory
+  else if (world->ux_state == UX_inventory) {
+    int item_pos = 0;
+    int fontsize = 20;
+    const char* text = "Press ESC to exit inventory";
+    int text_width = MeasureText(text, fontsize);
+    DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+    for (int i = 0; i < ARCH_MAX; i++) {
+      if (world->inventory_items[i].amount == 0)
+        continue;
+      ItemData inventory_item = world->inventory_items[i];
+      Vector2 texture_pos =
+          v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight / 2.0 - 40);
+      Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
+
+      Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
+
+      Color rec_color = (Color){245, 245, 245, 50};
+      if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
+        float offset = 4 + sin(4 * GetTime());
+        texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+        rec_color = GOLD;
+        rec_color.a = 50;
+        // TODO: Fix ui animation
+        // animate_v2_to_target(
+        //     &texture_pos, v2(texture_pos.x, texture_pos.y - 100),
+        //     dt, 1.0f);
+        DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
+                 text_pos.y - 20, 18, WHITE);
+      }
+      DrawRectangleRec(rec, rec_color);
+
+      DrawTextureEx(
+          sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+          texture_pos, 0, 5, WHITE);
+      DrawText(TextFormat("[%i]", world->inventory_items[i].amount), text_pos.x,
+               text_pos.y + 20, 20, WHITE);
+      item_pos++;
+    }
+  }
+  // :ui crafting
+  else if (world->ux_state == UX_crafting) {
+    const char* text = "Crafting...";
+    int fontsize = 20;
+    int text_width = MeasureText(text, fontsize);
+    DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+
+    Color rec_color = (Color){0, 0, 0, 200};
+    int padding = 10;
+    float icon_size = 40.0f;
+    float ui_origin_x = ScreenWidth * 0.5f - 0.5f * 5.0f * icon_size;
+    float ui_origin_y = ScreenHeight * 0.2f;
+    Rectangle ui_container = {ui_origin_x, ui_origin_y, 6 * icon_size,
+                              4 * icon_size};
+
+    // container rec
+    DrawRectangleRec(ui_container, rec_color);
+
+    // draw crafting options
+    for (int i = 1; i < CRAFTING_MAX; i++) {
+      CraftingID craft_id = (CraftingID)i;
+      CraftingData craft = crafts[craft_id];
+      Vector2 texture_pos = v2(ui_origin_x + 50 * i, ScreenHeight * 0.5);
+      Vector2 text_pos = v2(ui_container.x, ui_container.y);
+
+      Rectangle icon_rec =
+          (Rectangle){texture_pos.x, texture_pos.y, icon_size, icon_size};
+
+      DrawRectangleRec(icon_rec, rec_color);
+      Texture2D texture = sprites[craft.sprite_id].texture;
+      // :placing craft
+      if (CheckCollisionPointRec(mouse_pos_screen, icon_rec) &&
+          IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (check_craft_requirements(craft, world->inventory_items)) {
+          world->ux_state = UX_placing;
+          world->placing = craft_id;
+        }
+      }
+
+      if (CheckCollisionPointRec(mouse_pos_screen, icon_rec)) {
+        float offset = 4 + sin(4 * GetTime());
+        texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+        rec_color = GOLD;
+        rec_color.a = 50;
+        DrawText(get_arch_name(craft.to_craft), text_pos.x, text_pos.y - 24, 20,
+                 WHITE);
+
+        for (int j = 0; j < craft.n_requirements; j++) {
+          Color text_color = RED;
+          ItemData req = craft.requirements[j];
+          int player_has = world->inventory_items[req.arch].amount;
+          if (player_has >= req.amount) {
+            text_color = WHITE;
+          }
+          Texture texture = sprites[get_sprite_id_from_arch(req.arch)].texture;
+          DrawTexturePro(
+              texture,
+              (Rectangle){0, 0, (float)texture.width, (float)texture.height},
+              (Rectangle){ui_origin_x + padding,
+                          ui_origin_y + padding + j * icon_size, icon_size,
+                          icon_size},
+              v2(0, 0), 0, WHITE);
+          DrawText(TextFormat("%i / %i", req.amount, player_has),
+                   ui_origin_x + padding + icon_size,
+                   ui_origin_y + padding + j * icon_size, 18, text_color);
+        }
+      }
+      DrawTexturePro(
+          texture,
+          (Rectangle){0, 0, (float)texture.width, (float)texture.height},
+          (Rectangle){texture_pos.x, texture_pos.y, icon_rec.width,
+                      icon_rec.height},
+          v2(0, 0), 0, WHITE);
+    }
+  }
+  // :ui placing
+  else if (world->ux_state == UX_placing) {
+    const char* text = "Placing...\nPress ESC to exit Placing mode";
+    int fontsize = 20;
+    int text_width = MeasureText(text, fontsize);
+    DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+
+    if (world->placing != CRAFTING_nil) {
+      CraftingData craft = crafts[world->placing];
+      Texture texture = sprites[craft.sprite_id].texture;
+
+      int world_factor = camera->zoom / get_dpi_scale();
+      // the tile size on this case is on Screen space size
+      float tile_size = TILE_SIZE * world_factor;
+      Vector2 pos =
+          round_pos_to_tile(mouse_pos_screen.x, mouse_pos_screen.y, tile_size);
+
+      float width = texture.width * world_factor;
+      float height = texture.height * world_factor;
+      DrawTexturePro(
+          texture,
+          (Rectangle){0, 0, (float)texture.width, (float)texture.height},
+          (Rectangle){pos.x, pos.y, width, height}, v2(0, 0), 0,
+          (Color){255, 255, 255, 124});
+
+      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        // place craft
+        Entity* en = entity_create();
+        en->arch = craft.to_craft;
+        en->position =
+            round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y, TILE_SIZE);
+        en->sprite_id = craft.sprite_id;
+        en->size = get_sprite_size(craft.sprite_id);
+        en->is_destroyable = false;
+        en->is_cookware = true;
+        en->is_item = false;
+        en->health = 100;
+        // exit craft mode
         world->ux_state = UX_nil;
-        world->holding = (ItemData){0};
-      }
 
-      // handle open and close inventory
-      if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) {
-        world->ux_state = UX_inventory;
-      } else if (IsKeyPressed(KEY_ESCAPE)) {
-        world->ux_state = UX_nil;
-        world->holding = (ItemData){0};
-      }
-    }
-
-    // :pickup items
-    {
-      if (world_frame.near_pickup) {
-        Entity* entity_near = world_frame.near_pickup;
-        if (entity_near->is_valid && entity_near->is_item) {
-          // TODO: Pickup animation
-          PlaySound(pickup_sound);
-
-          world->inventory_items[entity_near->arch].amount += 1;
-          if (entity_near->is_food) {
-            world->inventory_items[entity_near->arch].food_id =
-                entity_near->food_id;
-          }
-          entity_destroy(entity_near);
+        // reduce the inventory
+        for (int x = 0; x < craft.n_requirements; x++) {
+          ItemData req = craft.requirements[x];
+          world->inventory_items[req.arch].amount -= req.amount;
         }
       }
     }
+  }
+  // :ui cooking
+  else if (world->ux_state == UX_cooking) {
+    const char* text = "Cooking...";
+    int fontsize = 20;
+    int text_width = MeasureText(text, fontsize);
+    DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
+    Entity* cooking_station = world_frame.near_player;
 
-    // :clicking
-    {
-      if (world->ux_state == UX_nil && action_button_pressed()) {
-        Entity* target = NULL;
-        // If there are selected item and item near player
-        // it will prefer to destroy the item near player
-        if (world_frame.near_player) {
-          target = world_frame.near_player;
-        } else if (world_frame.selected) {
-          target = world_frame.selected;
-        }
-        if (target && target->is_destroyable) {
-          PlaySound(destroy_sound);
-          // :destroy
-          target->health--;
-          if (target->health <= 0) {
-            create_item_drop(target);
-            entity_destroy(target);
-          }
-        }
-      }
-    }
+    int item_pos = 0;
+    for (int i = 0; i < ARCH_MAX; i++) {
+      ItemData inventory_item = world->inventory_items[i];
+      if (inventory_item.amount == 0)
+        continue;
+      Vector2 texture_pos =
+          v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
+      Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
 
-    EndMode2D();
+      Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
 
-    // :ui quick access
-    if (world->ux_state == UX_nil) {
-      int item_pos = 0;
-      for (int i = 0; i < ARCH_MAX; i++) {
-        ItemData inventory_item = world->inventory_items[i];
-        if (inventory_item.amount == 0)
-          continue;
-        Vector2 texture_pos =
-            v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
-        Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
-
-        Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
-
-        Color rec_color = (Color){245, 245, 245, 50};
-        if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
-          float offset = 4 + sin(4 * GetTime());
-          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
-          rec_color = GOLD;
-          rec_color.a = 50;
-          DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
-                   text_pos.y - 20, 18, WHITE);
-        }
-        DrawRectangleRec(rec, rec_color);
-
-        float scale = 5.0;
-        if (arch_is_food(inventory_item.arch)) {
-          scale = 2.5;
-        }
-        DrawTextureEx(
-            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
-            texture_pos, 0, scale, WHITE);
-
-        DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
-                 text_pos.x, text_pos.y + 20, 20, WHITE);
-        item_pos++;
-      }
-    }
-    // :ui inventory
-    else if (world->ux_state == UX_inventory) {
-      int item_pos = 0;
-      int fontsize = 20;
-      const char* text = "Press ESC to exit inventory";
-      int text_width = MeasureText(text, fontsize);
-      DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
-      for (int i = 0; i < ARCH_MAX; i++) {
-        if (world->inventory_items[i].amount == 0)
-          continue;
-        ItemData inventory_item = world->inventory_items[i];
-        Vector2 texture_pos = v2(-50 + ScreenWidth / 2.0 + 50 * item_pos,
-                                 ScreenHeight / 2.0 - 40);
-        Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
-
-        Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
-
-        Color rec_color = (Color){245, 245, 245, 50};
-        if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
-          float offset = 4 + sin(4 * GetTime());
-          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
-          rec_color = GOLD;
-          rec_color.a = 50;
-          // TODO: Fix ui animation
-          // animate_v2_to_target(
-          //     &texture_pos, v2(texture_pos.x, texture_pos.y - 100),
-          //     dt, 1.0f);
-          DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
-                   text_pos.y - 20, 18, WHITE);
-        }
-        DrawRectangleRec(rec, rec_color);
-
-        DrawTextureEx(
-            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
-            texture_pos, 0, 5, WHITE);
-        DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
-                 text_pos.x, text_pos.y + 20, 20, WHITE);
-        item_pos++;
-      }
-    }
-    // :ui crafting
-    else if (world->ux_state == UX_crafting) {
-      const char* text = "Crafting...";
-      int fontsize = 20;
-      int text_width = MeasureText(text, fontsize);
-      DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
-
-      Color rec_color = (Color){0, 0, 0, 200};
-      int padding = 10;
-      float icon_size = 40.0f;
-      float ui_origin_x = ScreenWidth * 0.5f - 0.5f * 5.0f * icon_size;
-      float ui_origin_y = ScreenHeight * 0.2f;
-      Rectangle ui_container = {ui_origin_x, ui_origin_y, 6 * icon_size,
-                                4 * icon_size};
-
-      // container rec
-      DrawRectangleRec(ui_container, rec_color);
-
-      // draw crafting options
-      for (int i = 1; i < CRAFTING_MAX; i++) {
-        CraftingID craft_id = (CraftingID)i;
-        CraftingData craft = crafts[craft_id];
-        Vector2 texture_pos = v2(ui_origin_x + 50 * i, ScreenHeight * 0.5);
-        Vector2 text_pos = v2(ui_container.x, ui_container.y);
-
-        Rectangle icon_rec =
-            (Rectangle){texture_pos.x, texture_pos.y, icon_size, icon_size};
-
-        DrawRectangleRec(icon_rec, rec_color);
-        Texture2D texture = sprites[craft.sprite_id].texture;
-        // :placing craft
-        if (CheckCollisionPointRec(mouse_pos_screen, icon_rec) &&
-            IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-          if (check_craft_requirements(craft, world->inventory_items)) {
-            world->ux_state = UX_placing;
-            world->placing = craft_id;
-          }
-        }
-
-        if (CheckCollisionPointRec(mouse_pos_screen, icon_rec)) {
-          float offset = 4 + sin(4 * GetTime());
-          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
-          rec_color = GOLD;
-          rec_color.a = 50;
-          DrawText(get_arch_name(craft.to_craft), text_pos.x, text_pos.y - 24,
-                   20, WHITE);
-
-          for (int j = 0; j < craft.n_requirements; j++) {
-            Color text_color = RED;
-            ItemData req = craft.requirements[j];
-            int player_has = world->inventory_items[req.arch].amount;
-            if (player_has >= req.amount) {
-              text_color = WHITE;
-            }
-            Texture texture =
-                sprites[get_sprite_id_from_arch(req.arch)].texture;
-            DrawTexturePro(
-                texture,
-                (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-                (Rectangle){ui_origin_x + padding, ui_origin_y + padding + j * icon_size,
-                 icon_size, icon_size},
-                v2(0, 0), 0, WHITE);
-            DrawText(TextFormat("%i / %i", req.amount, player_has),
-                     ui_origin_x + padding + icon_size,
-                     ui_origin_y + padding + j * icon_size, 18, text_color);
-          }
-        }
-        DrawTexturePro(
-            texture,
-            (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-            (Rectangle){texture_pos.x, texture_pos.y, icon_rec.width, icon_rec.height},
-            v2(0, 0), 0, WHITE);
-      }
-    }
-    // :ui placing
-    else if (world->ux_state == UX_placing) {
-      const char* text = "Placing...\nPress ESC to exit Placing mode";
-      int fontsize = 20;
-      int text_width = MeasureText(text, fontsize);
-      DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
-
-      if (world->placing != CRAFTING_nil) {
-        CraftingData craft = crafts[world->placing];
-        Texture texture = sprites[craft.sprite_id].texture;
-
-        int world_factor = camera->zoom / get_dpi_scale();
-        // the tile size on this case is on Screen space size
-        float tile_size = TILE_SIZE * world_factor;
-        Vector2 pos = round_pos_to_tile(mouse_pos_screen.x, mouse_pos_screen.y,
-                                        tile_size);
-
-        float width = texture.width * world_factor;
-        float height = texture.height * world_factor;
-        DrawTexturePro(
-            texture,
-            (Rectangle){0, 0, (float)texture.width, (float)texture.height},
-            (Rectangle){pos.x, pos.y, width, height}, v2(0, 0), 0,
-            (Color){255, 255, 255, 124});
-
+      Color rec_color = (Color){245, 245, 245, 50};
+      if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
+        float offset = 4 + sin(4 * GetTime());
+        texture_pos = v2(texture_pos.x, texture_pos.y - offset);
+        rec_color = GOLD;
+        rec_color.a = 50;
+        DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
+                 text_pos.y - 20, 18, WHITE);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-          // place craft
-          Entity* en = entity_create();
-          en->arch = craft.to_craft;
-          en->position = round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
-                                           TILE_SIZE);
-          en->sprite_id = craft.sprite_id;
-          en->size = get_sprite_size(craft.sprite_id);
-          en->is_destroyable = false;
-          en->is_cookware = true;
-          en->is_item = false;
-          en->health = 100;
-          // exit craft mode
-          world->ux_state = UX_nil;
-
-          // reduce the inventory
-          for (int x = 0; x < craft.n_requirements; x++) {
-            ItemData req = craft.requirements[x];
-            world->inventory_items[req.arch].amount -= req.amount;
-          }
-        }
-      }
-    }
-    // :ui cooking
-    else if (world->ux_state == UX_cooking) {
-      const char* text = "Cooking...";
-      int fontsize = 20;
-      int text_width = MeasureText(text, fontsize);
-      DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
-      Entity* cooking_station = world_frame.near_player;
-
-      int item_pos = 0;
-      for (int i = 0; i < ARCH_MAX; i++) {
-        ItemData inventory_item = world->inventory_items[i];
-        if (inventory_item.amount == 0)
-          continue;
-        Vector2 texture_pos =
-            v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight - 45);
-        Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
-
-        Rectangle rec = (Rectangle){texture_pos.x, texture_pos.y, 40, 40};
-
-        Color rec_color = (Color){245, 245, 245, 50};
-        if (CheckCollisionPointRec(mouse_pos_screen, rec)) {
-          float offset = 4 + sin(4 * GetTime());
-          texture_pos = v2(texture_pos.x, texture_pos.y - offset);
-          rec_color = GOLD;
-          rec_color.a = 50;
-          DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
-                   text_pos.y - 20, 18, WHITE);
-          if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            ItemData holdprev = world->holding;
-            if (holdprev.arch == inventory_item.arch) {
-              if (world->holding.amount < inventory_item.amount) {
-                world->holding.amount += 1;
-              }
-            } else {
-              world->holding = (ItemData){.amount = 1, .arch = inventory_item.arch};
+          ItemData holdprev = world->holding;
+          if (holdprev.arch == inventory_item.arch) {
+            if (world->holding.amount < inventory_item.amount) {
+              world->holding.amount += 1;
             }
+          } else {
+            world->holding =
+                (ItemData){.amount = 1, .arch = inventory_item.arch};
           }
         }
-        DrawRectangleRec(rec, rec_color);
-
-        float scale = 5.0;
-        if (arch_is_food(inventory_item.arch)) {
-          scale = 2.5;
-        }
-        DrawTextureEx(
-            sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
-            texture_pos, 0, scale, WHITE);
-
-        DrawText(TextFormat("[%i]", world->inventory_items[i].amount),
-                 text_pos.x, text_pos.y + 20, 20, WHITE);
-        item_pos++;
       }
-      if (world->holding.arch != ARCH_NIL) {
-        Vector2 sprite_pos =
-            v2(mouse_pos_screen.x - 20, mouse_pos_screen.y - 20);
-        ItemData holding = world->holding;
-        Color item_text_color = WHITE;
-        float scale = 5.0;
-        if (CheckCollisionPointRec(mouse_pos_world,
-                                   get_entity_rec(cooking_station))) {
-          item_text_color = GREEN;
-          float offset = fabs(sin(4 * GetTime()));
-          scale += offset;
-          if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            // place in the kitchen
-            cooking_station->currently_cooking = true;
-            if (cooking_add_ingredients(cooking_station, world->holding)) {
-              // reduce inventory
-              world->inventory_items[world->holding.arch].amount -=
-                  world->holding.amount;
-              // drop items
-              world->holding = (ItemData){};
-            }
+      DrawRectangleRec(rec, rec_color);
+
+      float scale = 5.0;
+      if (arch_is_food(inventory_item.arch)) {
+        scale = 2.5;
+      }
+      DrawTextureEx(
+          sprites[get_sprite_id_from_arch(inventory_item.arch)].texture,
+          texture_pos, 0, scale, WHITE);
+
+      DrawText(TextFormat("[%i]", world->inventory_items[i].amount), text_pos.x,
+               text_pos.y + 20, 20, WHITE);
+      item_pos++;
+    }
+    if (world->holding.arch != ARCH_NIL) {
+      Vector2 sprite_pos = v2(mouse_pos_screen.x - 20, mouse_pos_screen.y - 20);
+      ItemData holding = world->holding;
+      Color item_text_color = WHITE;
+      float scale = 5.0;
+      if (CheckCollisionPointRec(mouse_pos_world,
+                                 get_entity_rec(cooking_station))) {
+        item_text_color = GREEN;
+        float offset = fabs(sin(4 * GetTime()));
+        scale += offset;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+          // place in the kitchen
+          cooking_station->currently_cooking = true;
+          if (cooking_add_ingredients(cooking_station, world->holding)) {
+            // reduce inventory
+            world->inventory_items[world->holding.arch].amount -=
+                world->holding.amount;
+            // drop items
+            world->holding = (ItemData){};
           }
         }
-        DrawTextureEx(sprites[get_sprite_id_from_arch(holding.arch)].texture,
-                      sprite_pos, 0, scale, WHITE);
-        DrawText(TextFormat("%i", holding.amount), sprite_pos.x, sprite_pos.y,
-                 20, item_text_color);
       }
+      DrawTextureEx(sprites[get_sprite_id_from_arch(holding.arch)].texture,
+                    sprite_pos, 0, scale, WHITE);
+      DrawText(TextFormat("%i", holding.amount), sprite_pos.x, sprite_pos.y, 20,
+               item_text_color);
     }
-    // :ui dbg
-    {
-      // DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
-      //                     (int)mouse_pos_world.y),
-      //          400, 25, 20, RED);
-      // Vector2 dbg_pos =
-      //     round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
-      //     TILE_SIZE);
-      //
-      // DrawText(
-      //     TextFormat("Tile pos: [%i , %i]", (int)dbg_pos.x,
-      //     (int)dbg_pos.y), 100, 25, 20, BLUE);
-      DrawFPS(0, 0);
-    }
-    EndDrawing();
+  }
+  // :ui dbg
+  {
+    // DrawText(TextFormat("Mouse World: [%i , %i]", (int)mouse_pos_world.x,
+    //                     (int)mouse_pos_world.y),
+    //          400, 25, 20, RED);
+    // Vector2 dbg_pos =
+    //     round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
+    //     TILE_SIZE);
+    //
+    // DrawText(
+    //     TextFormat("Tile pos: [%i , %i]", (int)dbg_pos.x,
+    //     (int)dbg_pos.y), 100, 25, 20, BLUE);
+    DrawFPS(0, 0);
+  }
+  EndDrawing();
   return;
 }
 
@@ -1473,7 +1479,7 @@ Camera2D* setup_camera() {
   int width = GetRenderWidth();
   int height = GetRenderHeight();
   int dpi_scale = get_dpi_scale();
-  camera2d->offset =v2(width / 2.0f, height / 2.0f);
+  camera2d->offset = v2(width / 2.0f, height / 2.0f);
   camera2d->rotation = 0.0f;
   camera2d->target = world->entities[0].position;
   camera2d->zoom = 5 * dpi_scale;
@@ -1690,10 +1696,7 @@ Sprite load_sprite(const char* path, SpriteID id) {
   if (image.data != NULL) {
     Texture2D texture = LoadTextureFromImage(image);
     UnloadImage(image);
-    sprites[id] = (Sprite) {
-        .texture = texture, 
-        .id=id
-    };
+    sprites[id] = (Sprite){.texture = texture, .id = id};
     return sprites[id];
   }
   return sprites[SPRITE_nil];
