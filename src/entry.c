@@ -947,7 +947,7 @@ void update_draw_frame() {
             Vector2 pos = round_pos_to_tile(
                 entity->position.x, entity->position.y - TILE_SIZE, TILE_SIZE);
 
-            Entity* cooked = create_food(entity, pos);
+            create_food(entity, pos);
 
             entity->currently_cooking = false;
             entity->cooking_endtime = 0;
@@ -1079,7 +1079,7 @@ void update_draw_frame() {
           // :destroy
           target->health--;
           if (target->health <= 0) {
-            Entity* item = create_item_drop(target);
+            create_item_drop(target);
             entity_destroy(target);
           }
         }
@@ -1209,8 +1209,6 @@ void update_draw_frame() {
           texture_pos = v2(texture_pos.x, texture_pos.y - offset);
           rec_color = GOLD;
           rec_color.a = 50;
-          const char* text = get_arch_name(craft.to_craft);
-          float text_length = MeasureText(text, 20);
           DrawText(get_arch_name(craft.to_craft), text_pos.x, text_pos.y - 24,
                    20, WHITE);
 
