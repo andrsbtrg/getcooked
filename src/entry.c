@@ -239,6 +239,7 @@ typedef struct Entity {
   bool render_sprite;
   bool is_cookware;
   bool currently_cooking;
+  float distort;
 } Entity;
 
 typedef struct ItemData {
@@ -808,6 +809,10 @@ void draw_shadow(Entity* entity, Rectangle rec, float offset) {
 
 void update_draw_frame(void);
 
+void hit_animation(Entity* entity) {
+  entity->distort = 5.0f;
+}
+
 int main(void) {
   // Required so the window is not 1/4 of the screen in high dpi
   SetConfigFlags(FLAG_WINDOW_HIGHDPI);
@@ -984,6 +989,13 @@ void update_draw_frame() {
         }
       }
     }
+
+    if (entity->distort > 0) {
+      entity->distort -= 0.5;
+    }
+    if (entity->distort < 0) {
+      entity->distort = 0;
+    }
   }
 
   // :sort in y
@@ -1045,8 +1057,8 @@ void update_draw_frame() {
                           WHITE);
           } else {
             draw_shadow(entity, rec, 0.0f);
-            DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
-                         WHITE);
+            DrawTextureEx(sprites[entity->sprite_id].texture, entity->position,
+                          0.0, (1 + 0.01 * entity->distort), WHITE);
           }
           // draw cooking effects
           if (entity->is_cookware && entity->currently_cooking) {
@@ -1129,6 +1141,8 @@ void update_draw_frame() {
         PlaySound(destroy_sound);
         // :destroy
         target->health--;
+        // attack effect
+        hit_animation(target);
         if (target->health <= 0) {
           create_item_drop(target);
           entity_destroy(target);
