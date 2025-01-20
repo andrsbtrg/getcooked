@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include "raylib.h"
 #include "raymath.h"
@@ -161,6 +162,7 @@ typedef enum SpriteID {
   SPRITE_stock_pot,
   SPRITE_oven,
   SPRITE_grill,
+  SPRITE_shadow,
 
   SPRITE_FOOD_nil,
   SPRITE_FOOD_burger,
@@ -647,6 +649,7 @@ void load_sprites() {
   load_sprite("assets/stock_pot.png", SPRITE_stock_pot);
   load_sprite("assets/grill.png", SPRITE_grill);
   load_sprite("assets/oven.png", SPRITE_oven);
+  load_sprite("assets/shadow.png", SPRITE_shadow);
 
   for (int i = FOOD_nil; i < FOOD_MAX - 1; i++) {
     const char* filename = TextFormat("assets/fnb_sprite/%i.png", i);
@@ -770,26 +773,27 @@ bool cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
   return false;
 }
 
-void draw_shadow(Entity* entity, Rectangle rec) {
-  // Draw shadow
-  Color shadow_color = {10, 10, 10, 100};
-  float shadow_width = 0.5 * rec.width;
-  Vector2 shadow_pos = v2(entity->position.x + (entity->size.x * 0.5),
-                          entity->position.y + entity->size.y);
+void draw_shadow(Entity* entity, Rectangle rec, float offset) {
+  Texture tex = sprites[SPRITE_shadow].texture;
+  float v_offset = 2 * (entity->size.x / tex.width);
+  Vector2 shadow_pos =
+      Vector2Add(entity->position, v2(0, entity->size.y - v_offset));
 
-  DrawEllipse(shadow_pos.x, shadow_pos.y, shadow_width, shadow_width * 0.4,
-              shadow_color);
-}
+  float size_offset = 0.05 * offset;
 
-void draw_shadow_float(Entity* entity, Rectangle rec, float offset) {
-  // Draw shadow
-  Color shadow_color = {10, 10, 10, 100};
-  float shadow_width = (0.4 * rec.width) - 0.5 * offset;
-  Vector2 shadow_pos = v2(entity->position.x + (entity->size.x * 0.5),
-                          entity->position.y + entity->size.y);
-
-  DrawEllipse(shadow_pos.x, shadow_pos.y, shadow_width, shadow_width * 0.4,
-              shadow_color);
+  DrawTexturePro(
+      tex,
+      (Rectangle){// source rectangle
+                  .x = 0,
+                  .y = 0,
+                  .width = tex.width,
+                  .height = tex.height},
+      (Rectangle){// dest rectangle
+                  .x = shadow_pos.x,
+                  .y = shadow_pos.y,
+                  .width = (1 + size_offset) * entity->size.x,
+                  .height = (1 + size_offset) * 0.4 * entity->size.y},
+      v2(0, 0), 0.0f, WHITE);
 }
 
 void update_draw_frame(void);
@@ -1012,11 +1016,11 @@ void update_draw_frame() {
               scale = 0.5f;
             }
 
-            draw_shadow_float(entity, rec, offset);
+            draw_shadow(entity, rec, offset);
             DrawTextureEx(sprites[entity->sprite_id].texture, pos, 0, scale,
                           WHITE);
           } else {
-            draw_shadow(entity, rec);
+            draw_shadow(entity, rec, 0.0f);
             DrawTextureV(sprites[entity->sprite_id].texture, entity->position,
                          WHITE);
           }
@@ -1034,7 +1038,7 @@ void update_draw_frame() {
     // player shadow
 
     Rectangle player_rec = get_entity_rec(player);
-    draw_shadow(player, player_rec);
+    draw_shadow(player, player_rec, 0.0f);
     // :render player
     DrawTextureV(sprites[player->sprite_id].texture, player->position, WHITE);
   }
