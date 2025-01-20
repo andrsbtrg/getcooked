@@ -345,9 +345,11 @@ Entity* player;
 // :consts
 
 const float TILE_SIZE = 8.0f;
-const float ENTITY_SELECTION_RADIUS = 8.0;
-const float PICKUP_RADIUS = 8.0;
+const float ENTITY_SELECTION_RADIUS = 10.0;
+const float PICKUP_RADIUS = 20.0;
+
 #define MAX_ENTITIES 1024
+
 typedef struct World {
   Entity entities[MAX_ENTITIES];
   ItemData inventory_items[ARCH_MAX];
@@ -688,6 +690,13 @@ World* init_world() {
   return world;
 }
 
+float square(float n) {
+  return n * n;
+}
+float v2_distance_sq(Vector2 a, Vector2 b) {
+  return (float)(square(a.x - b.x)) + square(a.y - b.y);
+}
+
 bool is_cooking_system(ArchetypeID arch) {
   switch (arch) {
     case ARCH_OVEN:
@@ -963,6 +972,9 @@ void update_draw_frame() {
       }
       if (CheckCollisionPointRec(get_entity_center(player), selection_rec)) {
         world_frame.near_player = entity;
+        if (entity->is_item) {
+          animate_v2_to_target(&entity->position, player->position, dt, 20.0f);
+        }
       }
       if (CheckCollisionPointRec(get_entity_center(player), pickup_rec)) {
         world_frame.near_pickup = entity;
@@ -1113,15 +1125,17 @@ void update_draw_frame() {
     if (world_frame.near_pickup) {
       Entity* entity_near = world_frame.near_pickup;
       if (entity_near->is_valid && entity_near->is_item) {
-        // TODO: Pickup animation
-        PlaySound(pickup_sound);
-
-        world->inventory_items[entity_near->arch].amount += 1;
-        if (entity_near->is_food) {
-          world->inventory_items[entity_near->arch].food_id =
-              entity_near->food_id;
+        // Pickup animation
+        float dist_sq = v2_distance_sq(entity_near->position, player->position);
+        if (fabs(dist_sq - 0.2) < 0.2) {
+          world->inventory_items[entity_near->arch].amount += 1;
+          if (entity_near->is_food) {
+            world->inventory_items[entity_near->arch].food_id =
+                entity_near->food_id;
+          }
+          PlaySound(pickup_sound);
+          entity_destroy(entity_near);
         }
-        entity_destroy(entity_near);
       }
     }
   }
