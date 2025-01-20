@@ -356,7 +356,17 @@ typedef struct World {
   float spawn_data[ARRAY_LEN(world_resources)];
 } World;
 
+typedef struct EntitySort {
+  int index;
+  float y_pos;
+} EntitySort;
+
+int compare(const void* a, const void* b) {
+  return (*(float*)a - *(float*)b);
+}
+
 typedef struct WorldFrame {
+  EntitySort entities_ysort[MAX_ENTITIES];
   Entity* selected;
   Entity* near_player;
   Entity* near_pickup;
@@ -976,9 +986,23 @@ void update_draw_frame() {
     }
   }
 
-  // :rendering
+  // :sort in y
   {
     for (int i = 0; i < MAX_ENTITIES; i++) {
+      if (world->entities[i].is_valid) {
+        world_frame.entities_ysort[i] =
+            (EntitySort){.index = i, .y_pos = world->entities[i].position.y};
+      }
+    }
+
+    qsort(world_frame.entities_ysort, MAX_ENTITIES, sizeof(EntitySort),
+          compare);
+  }
+
+  // :rendering
+  {
+    for (int x = 0; x < MAX_ENTITIES; x++) {
+      int i = world_frame.entities_ysort[x].index;
       Entity* entity = &world->entities[i];
       if (NULL == entity) {
         continue;
@@ -1317,6 +1341,7 @@ void update_draw_frame() {
   }
   // :ui cooking
   else if (world->ux_state == UX_cooking) {
+    DrawRectangle(0, 0, ScreenWidth, ScreenHeight, (Color){50, 0, 0, 50});
     const char* text = "Cooking...";
     int fontsize = 20;
     int text_width = MeasureText(text, fontsize);
