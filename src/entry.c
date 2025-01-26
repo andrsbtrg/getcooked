@@ -148,6 +148,9 @@ typedef enum FoodID {
 typedef enum SpriteID {
   SPRITE_nil,
   SPRITE_player,
+  SPRITE_player_up,
+  SPRITE_player_left,
+  SPRITE_player_right,
   SPRITE_rock,
   SPRITE_tree,
   SPRITE_wood,
@@ -222,6 +225,8 @@ typedef enum SpriteID {
 typedef struct Sprite {
   Texture2D texture;
   SpriteID id;
+  int frames;
+  Rectangle frameRec;
 } Sprite;
 
 typedef struct Entity {
@@ -240,6 +245,8 @@ typedef struct Entity {
   bool is_cookware;
   bool currently_cooking;
   float distort;
+  int currentFrame;
+  int frameCounter;
 } Entity;
 
 typedef struct ItemData {
@@ -347,6 +354,7 @@ Entity* player;
 const float TILE_SIZE = 8.0f;
 const float ENTITY_SELECTION_RADIUS = 10.0;
 const float PICKUP_RADIUS = 20.0;
+const int FRAME_SPEED = 8;
 
 #define MAX_ENTITIES 1024
 
@@ -467,13 +475,15 @@ static inline int get_dpi_scale() {
 
 Entity* entity_create();
 Entity* create_food(Entity* cooking_station, Vector2 position);
-Sprite load_sprite(const char* path, SpriteID id);
+Sprite load_sprite(const char* path, SpriteID id, int frames);
 void init_entities();
 void update_player(Entity* player);
 void setup_window(void);
 Camera2D* setup_camera();
 void update_camera(Camera2D*, Entity*, float dt);
 void unload_textures();
+void draw_sprite(Entity* entity);
+void update_entity_frame(Entity* entity);
 
 // :math
 bool almost_equals(float a, float b, float epsilon);
@@ -503,7 +513,7 @@ Vector2 round_pos_to_tile(int x, int y, float tile_size) {
 
 Vector2 get_sprite_size(SpriteID id) {
   Sprite sprite = sprites[id];
-  return v2(sprite.texture.width, sprite.texture.height);
+  return v2(sprite.texture.width / (float)sprite.frames, sprite.texture.height);
 }
 
 Vector2 get_entity_center(Entity* entity) {
@@ -643,31 +653,36 @@ void setup_recipes() {
 }
 
 void load_sprites() {
-  load_sprite("assets/missing.png", SPRITE_nil);
-  load_sprite("assets/player.png", SPRITE_player);
-  load_sprite("assets/tree.png", SPRITE_tree);
-  load_sprite("assets/rock.png", SPRITE_rock);
-  load_sprite("assets/wood.png", SPRITE_wood);
-  load_sprite("assets/rock_item.png", SPRITE_rock_item);
+  load_sprite("assets/missing.png", SPRITE_nil, 1);
 
-  load_sprite("assets/bush.png", SPRITE_tomato);
-  load_sprite("assets/pumpkin.png", SPRITE_pumpkin);
-  load_sprite("assets/plant.png", SPRITE_plant);
-  load_sprite("assets/soil.png", SPRITE_soil);
-  load_sprite("assets/kitchen.png", SPRITE_table);
-  load_sprite("assets/tomato_item.png", SPRITE_tomato_item);
+  load_sprite("assets/player.png", SPRITE_player, 3);
+  load_sprite("assets/player_up.png", SPRITE_player_up, 3);
+  load_sprite("assets/player_right.png", SPRITE_player_right, 3);
+  load_sprite("assets/player_left.png", SPRITE_player_left, 3);
 
-  load_sprite("assets/pumpkin_item.png", SPRITE_pumpkin_item);
+  load_sprite("assets/tree.png", SPRITE_tree, 1);
+  load_sprite("assets/rock.png", SPRITE_rock, 1);
+  load_sprite("assets/wood.png", SPRITE_wood, 1);
+  load_sprite("assets/rock_item.png", SPRITE_rock_item, 1);
 
-  load_sprite("assets/stock_pot.png", SPRITE_stock_pot);
-  load_sprite("assets/grill.png", SPRITE_grill);
-  load_sprite("assets/oven.png", SPRITE_oven);
-  load_sprite("assets/shadow.png", SPRITE_shadow);
+  load_sprite("assets/bush.png", SPRITE_tomato, 1);
+  load_sprite("assets/pumpkin.png", SPRITE_pumpkin, 1);
+  load_sprite("assets/plant.png", SPRITE_plant, 1);
+  load_sprite("assets/soil.png", SPRITE_soil, 1);
+  load_sprite("assets/kitchen.png", SPRITE_table, 1);
+  load_sprite("assets/tomato_item.png", SPRITE_tomato_item, 1);
+
+  load_sprite("assets/pumpkin_item.png", SPRITE_pumpkin_item, 1);
+
+  load_sprite("assets/stock_pot.png", SPRITE_stock_pot, 1);
+  load_sprite("assets/grill.png", SPRITE_grill, 1);
+  load_sprite("assets/oven.png", SPRITE_oven, 1);
+  load_sprite("assets/shadow.png", SPRITE_shadow, 1);
 
   for (int i = FOOD_nil; i < FOOD_MAX - 1; i++) {
     const char* filename = TextFormat("assets/fnb_sprite/%i.png", i);
     FoodID id = (FoodID)(i + 1);
-    load_sprite(filename, sprite_id_from_food_id(id));
+    load_sprite(filename, sprite_id_from_food_id(id), 1);
   }
 }
 
@@ -1002,6 +1017,7 @@ void update_draw_frame() {
       }
     }
 
+    // Hit distortion
     if (entity->distort > 0) {
       entity->distort -= 0.5;
     }
@@ -1088,7 +1104,10 @@ void update_draw_frame() {
     Rectangle player_rec = get_entity_rec(player);
     draw_shadow(player, player_rec, 0.0f);
     // :render player
-    DrawTextureV(sprites[player->sprite_id].texture, player->position, WHITE);
+
+    draw_sprite(player);
+    // DrawTextureV(sprites[player->sprite_id].texture, player->position,
+    // WHITE);
   }
 
   // :ux_state detection
@@ -1127,7 +1146,7 @@ void update_draw_frame() {
       if (entity_near->is_valid && entity_near->is_item) {
         // Pickup animation
         float dist_sq = v2_distance_sq(entity_near->position, player->position);
-        if (fabs(dist_sq - 0.2) < 0.2) {
+        if (fabs(dist_sq - 0.1) <= 0.09) {
           world->inventory_items[entity_near->arch].amount += 1;
           if (entity_near->is_food) {
             world->inventory_items[entity_near->arch].food_id =
@@ -1566,21 +1585,36 @@ void update_player(Entity* player) {
   Vector2 input_axis = v2(0.0, 0.0);
   if (IsKeyDown(KEY_A)) {
     input_axis.x = -1;
+    player->sprite_id = SPRITE_player_left;
   }
   if (IsKeyDown(KEY_D)) {
     input_axis.x = 1;
+    player->sprite_id = SPRITE_player_right;
   }
   if (IsKeyDown(KEY_S)) {
     input_axis.y = 1;
+    player->sprite_id = SPRITE_player;
   }
   if (IsKeyDown(KEY_W)) {
     input_axis.y = -1;
+    player->sprite_id = SPRITE_player_up;
   }
   input_axis = Vector2Normalize(input_axis);
 
   Vector2 initial_pos = (Vector2){player->position.x, player->position.y};
   Vector2 movement = Vector2Scale(input_axis, 1.0f);
+
+  // Reset player sprite if not moving
+  if (FloatEquals(0.0, movement.x) && FloatEquals(0.0, movement.y)) {
+    player->currentFrame = 0;
+
+    Sprite* player_sprite = &sprites[player->sprite_id];
+    player_sprite->frameRec.x = 0;
+    return;
+  }
+
   player->position = Vector2Add(initial_pos, movement);
+  update_entity_frame(player);
   return;
 }
 /*
@@ -1766,12 +1800,18 @@ void animate_v2_to_target(Vector2* value,
 /* Loads the image from path into memory
  * as a texture and assigns the SpriteID id
  */
-Sprite load_sprite(const char* path, SpriteID id) {
+Sprite load_sprite(const char* path, SpriteID id, int frames) {
   Image image = LoadImage(path);
   if (image.data != NULL) {
     Texture2D texture = LoadTextureFromImage(image);
     UnloadImage(image);
-    sprites[id] = (Sprite){.texture = texture, .id = id};
+    sprites[id] = (Sprite){.texture = texture,
+                           .id = id,
+                           .frames = frames,
+                           .frameRec = {.x = 0.0f,
+                                        .y = 0.0f,
+                                        .width = (float)texture.width / frames,
+                                        .height = (float)texture.height}};
     return sprites[id];
   }
   return sprites[SPRITE_nil];
@@ -1784,5 +1824,27 @@ void unload_textures() {
   for (int i = 0; i < SPRITE_MAX; i++) {
     Texture2D texture = sprites[i].texture;
     UnloadTexture(texture);
+  }
+}
+
+void draw_sprite(Entity* entity) {
+  Sprite sprite = sprites[entity->sprite_id];
+  DrawTextureRec(sprite.texture, sprite.frameRec, entity->position, WHITE);
+}
+
+void update_entity_frame(Entity* entity) {
+  // update sprite frame
+  Sprite* entity_sprite = &sprites[entity->sprite_id];
+  entity->frameCounter++;
+
+  if (entity->frameCounter >= (60 / FRAME_SPEED)) {
+    entity->frameCounter = 0;
+    entity->currentFrame++;
+
+    if (entity->currentFrame > entity_sprite->frames)
+      entity->currentFrame = 0;
+
+    Vector2 sprite_size = get_sprite_size(entity->sprite_id);
+    entity_sprite->frameRec.x = (float)entity->currentFrame * sprite_size.x;
   }
 }
