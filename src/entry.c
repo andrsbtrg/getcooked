@@ -994,7 +994,8 @@ void update_draw_frame() {
           animate_v2_to_target(&entity->position, player->position, dt, 20.0f);
         }
       }
-      if (CheckCollisionPointRec(get_entity_center(player), pickup_rec)) {
+      if (CheckCollisionPointRec(get_entity_center(player), pickup_rec) &&
+          entity->is_item) {
         world_frame.near_pickup = entity;
       }
     }
