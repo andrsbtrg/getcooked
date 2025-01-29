@@ -485,9 +485,11 @@ void setup_window(void);
 Camera2D* setup_camera();
 void update_camera(Camera2D*, Entity*, float dt);
 void unload_textures();
-void draw_sprite(Entity* entity);
+void draw_sprite(Entity* entity, Vector2 offset);
 void update_entity_frame(Entity* entity);
 
+// :colors
+#define WHITE_TRANSP CLITERAL(Color){255, 255, 255, 50}  // White transparent
 // :math
 bool almost_equals(float a, float b, float epsilon);
 
@@ -1069,23 +1071,23 @@ void update_draw_frame() {
       switch (entity->arch) {
         default: {
           Color tile_color = {0};
-          if (entity == world_frame.selected) {
-            tile_color = (Color){255, 255, 255, 50};
-          }
-          if (entity == world_frame.near_player) {
-            tile_color = (Color){255, 0, 0, 50};
+          if (entity == world_frame.selected ||
+              entity == world_frame.near_player) {
+            tile_color = WHITE_TRANSP;
           }
 
           DrawRectangleRec(rec, tile_color);
-          if (entity->is_item) {
-            // floating shadow animation
-            float offset = sin(4 * GetTime());
-            draw_shadow(entity, rec, offset);
 
-          } else {
-            draw_shadow(entity, rec, 0.0f);
+          Vector2 sprite_offset = v2(0, 0);
+
+          if (entity->is_item) {  // floating shadow animation
+            float offset = sin(4 * GetTime());
+            sprite_offset.y = offset;
           }
-          draw_sprite(entity);
+
+          draw_shadow(entity, rec, sprite_offset.y);
+
+          draw_sprite(entity, sprite_offset);
           // draw cooking effects
           if (entity->is_cookware && entity->currently_cooking) {
             double time_left = entity->cooking_endtime - GetTime();
@@ -1815,11 +1817,14 @@ void unload_textures() {
   }
 }
 
-void draw_sprite(Entity* entity) {
+/*
+ * Draws the sprite for an entity and specific offset
+ */
+void draw_sprite(Entity* entity, Vector2 offset) {
   Sprite sprite = sprites[entity->sprite_id];
 
-  Rectangle dest = {.x = entity->position.x,
-                    .y = entity->position.y,
+  Rectangle dest = {.x = entity->position.x + offset.x,
+                    .y = entity->position.y + offset.y,
                     .width = entity->size.x,
                     entity->size.y};
 
