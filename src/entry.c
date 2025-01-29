@@ -373,7 +373,9 @@ typedef struct EntitySort {
 } EntitySort;
 
 int compare(const void* a, const void* b) {
-  return (*(float*)a - *(float*)b);
+  float float_a = ((EntitySort*)a)->y_pos;
+  float float_b = ((EntitySort*)b)->y_pos;
+  return (float_a - float_b);
 }
 
 typedef struct WorldFrame {
