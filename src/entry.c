@@ -370,6 +370,7 @@ typedef struct World {
 typedef struct EntitySort {
   int index;
   float y_pos;
+  bool is_valid;
 } EntitySort;
 
 int compare(const void* a, const void* b) {
@@ -865,10 +866,10 @@ int main(void) {
 
   camera = setup_camera();
 
+  SetTargetFPS(60);
 #if defined(PLATFORM_WEB)
   emscripten_set_main_loop(update_draw_frame, 0, 1);
 #else
-  SetTargetFPS(60);
 
   while (!WindowShouldClose()) {
     update_draw_frame();
@@ -1032,8 +1033,11 @@ void update_draw_frame() {
   {
     for (int i = 0; i < MAX_ENTITIES; i++) {
       if (world->entities[i].is_valid) {
+        Entity this = world->entities[i];
         world_frame.entities_ysort[i] =
-            (EntitySort){.index = i, .y_pos = world->entities[i].position.y};
+            (EntitySort){.index = i,
+                         .y_pos = (this.position.y + this.size.y),
+                         .is_valid = true};
       }
     }
 
@@ -1044,6 +1048,8 @@ void update_draw_frame() {
   // :rendering
   {
     for (int x = 0; x < MAX_ENTITIES; x++) {
+      if (!world_frame.entities_ysort[x].is_valid)
+        continue;
       int i = world_frame.entities_ysort[x].index;
       Entity* entity = &world->entities[i];
       if (NULL == entity) {
@@ -1060,9 +1066,6 @@ void update_draw_frame() {
 
       // :rendering
       switch (entity->arch) {
-        case ARCH_PLAYER: {
-          break;
-        }
         default: {
           Color tile_color = {0};
           if (entity == world_frame.selected) {
@@ -1074,42 +1077,24 @@ void update_draw_frame() {
 
           DrawRectangleRec(rec, tile_color);
           if (entity->is_item) {
-            // float
+            // floating shadow animation
             float offset = sin(4 * GetTime());
-            Vector2 pos = v2(entity->position.x, entity->position.y + offset);
-            float scale = 1.0;
-            if (entity->is_food) {
-              scale = 0.5f;
-            }
-
             draw_shadow(entity, rec, offset);
-            DrawTextureEx(sprites[entity->sprite_id].texture, pos, 0, scale,
-                          WHITE);
+
           } else {
             draw_shadow(entity, rec, 0.0f);
-            DrawTextureEx(sprites[entity->sprite_id].texture, entity->position,
-                          0.0, (1 + 0.01 * entity->distort), WHITE);
           }
+          draw_sprite(entity);
           // draw cooking effects
           if (entity->is_cookware && entity->currently_cooking) {
             double time_left = entity->cooking_endtime - GetTime();
             DrawText(TextFormat("%i", (int)ceil(time_left)), entity->position.x,
                      entity->position.y, 2, WHITE);
           }
-
           break;
         }
       }
     }
-    // player shadow
-
-    Rectangle player_rec = get_entity_rec(player);
-    draw_shadow(player, player_rec, 0.0f);
-    // :render player
-
-    draw_sprite(player);
-    // DrawTextureV(sprites[player->sprite_id].texture, player->position,
-    // WHITE);
   }
 
   // :ux_state detection
@@ -1578,7 +1563,7 @@ Camera2D* setup_camera() {
   camera2d->offset = v2(width / 2.0f, height / 2.0f);
   camera2d->rotation = 0.0f;
   camera2d->target = world->entities[0].position;
-  camera2d->zoom = 5 * dpi_scale;
+  camera2d->zoom = 4.5 * dpi_scale;
   return camera2d;
 }
 
@@ -1831,7 +1816,14 @@ void unload_textures() {
 
 void draw_sprite(Entity* entity) {
   Sprite sprite = sprites[entity->sprite_id];
-  DrawTextureRec(sprite.texture, sprite.frameRec, entity->position, WHITE);
+
+  Rectangle dest = {.x = entity->position.x,
+                    .y = entity->position.y,
+                    .width = entity->size.x,
+                    entity->size.y};
+
+  dest = expand_rectangle(dest, 0.5 * entity->distort);
+  DrawTexturePro(sprite.texture, sprite.frameRec, dest, v2(0, 0), 0, WHITE);
 }
 
 void update_entity_frame(Entity* entity) {
