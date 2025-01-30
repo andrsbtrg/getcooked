@@ -1552,7 +1552,7 @@ void init_entities() {
   wood->arch = ARCH_WOOD_ITEM;
   wood->sprite_id = SPRITE_wood;
   wood->size = get_sprite_size(SPRITE_wood);
-  wood->is_destroyable = true;
+  wood->is_destroyable = false;
   wood->is_item = true;
 
   return;
