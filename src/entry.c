@@ -237,6 +237,7 @@ typedef struct Entity {
   FoodID food_id;
   float cooking_endtime;
   int health;
+  int max_health;
   bool is_valid;
   bool is_destroyable;
   bool is_item;
@@ -487,6 +488,7 @@ void update_camera(Camera2D*, Entity*, float dt);
 void unload_textures();
 void draw_sprite(Entity* entity, Vector2 offset);
 void update_entity_frame(Entity* entity);
+int get_max_health(ArchetypeID arch);
 
 // :colors
 #define WHITE_TRANSP CLITERAL(Color){255, 255, 255, 50}  // White transparent
@@ -955,6 +957,7 @@ void update_draw_frame() {
       }
       if (GetTime() > world->spawn_data[i]) {
         // spawn the thing
+        int health = get_max_health(data.arch);
         Entity* item_to_spawn = entity_create();
         int pos_x = GetRandomValue(-100, 100);
         int pos_y = GetRandomValue(-100, 100);
@@ -962,7 +965,8 @@ void update_draw_frame() {
         item_to_spawn->arch = data.arch;
         item_to_spawn->position = round_pos_to_tile(pos_x, pos_y, TILE_SIZE);
         item_to_spawn->sprite_id = sprite_id;
-        item_to_spawn->health = 2;
+        item_to_spawn->health = health;
+        item_to_spawn->max_health = health;
         item_to_spawn->is_destroyable = true;
         item_to_spawn->size = get_sprite_size(sprite_id);
         world->spawn_data[i] = 0.0;
@@ -1048,17 +1052,14 @@ void update_draw_frame() {
           compare);
   }
 
-  // :rendering
+  // :render entities
   {
     for (int x = 0; x < MAX_ENTITIES; x++) {
       if (!world_frame.entities_ysort[x].is_valid)
         continue;
       int i = world_frame.entities_ysort[x].index;
       Entity* entity = &world->entities[i];
-      if (NULL == entity) {
-        continue;
-      }
-      if (!entity->is_valid) {
+      if (NULL == entity || !entity->is_valid) {
         continue;
       }
 
@@ -1093,6 +1094,10 @@ void update_draw_frame() {
             double time_left = entity->cooking_endtime - GetTime();
             DrawRectangle(entity->position.x, entity->position.y,
                           (int)ceil(time_left), 2, GREEN);
+          }
+          if (entity->health < entity->max_health) {
+            DrawRectangle(entity->position.x, entity->position.y,
+                          (int)(entity->health), 2, GREEN);
           }
           break;
         }
@@ -1480,9 +1485,8 @@ void update_draw_frame() {
  * Create entities
  */
 void init_entities() {
-  int rock_health = 3;
-  int tree_health = 3;
-  int plant_health = 1;
+  int rock_health = get_max_health(ARCH_ROCK);
+  int tree_health = get_max_health(ARCH_TREE);
 
   Entity* player = entity_create();
   player->arch = ARCH_PLAYER;
@@ -1509,10 +1513,11 @@ void init_entities() {
     rock->sprite_id = SPRITE_rock;
     rock->size = get_sprite_size(SPRITE_rock);
     rock->health = rock_health;
+    rock->max_health = rock_health;
     rock->is_destroyable = true;
   }
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 10; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
     Entity* tree = entity_create();
@@ -1521,31 +1526,34 @@ void init_entities() {
     tree->sprite_id = SPRITE_tree;
     tree->size = get_sprite_size(SPRITE_tree);
     tree->health = tree_health;
+    tree->max_health = tree_health;
     tree->is_destroyable = true;
   }
 
   for (int i = 0; i < 7; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
-    Entity* bush = entity_create();
-    bush->position = round_pos_to_tile(x, y, TILE_SIZE);
-    bush->arch = ARCH_TOMATO_PLANT;
-    bush->sprite_id = SPRITE_tomato;
-    bush->size = get_sprite_size(SPRITE_tomato);
-    bush->health = plant_health;
-    bush->is_destroyable = true;
+    Entity* tomato_plant = entity_create();
+    tomato_plant->position = round_pos_to_tile(x, y, TILE_SIZE);
+    tomato_plant->arch = ARCH_TOMATO_PLANT;
+    tomato_plant->sprite_id = SPRITE_tomato;
+    tomato_plant->size = get_sprite_size(SPRITE_tomato);
+    tomato_plant->health = get_max_health(ARCH_TOMATO_PLANT);
+    tomato_plant->max_health = get_max_health(ARCH_TOMATO_PLANT);
+    tomato_plant->is_destroyable = true;
   }
 
   for (int i = 0; i < 5; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
-    Entity* bush = entity_create();
-    bush->position = round_pos_to_tile(x, y, TILE_SIZE);
-    bush->arch = ARCH_PUMPKIN_PLANT;
-    bush->sprite_id = get_sprite_id_from_arch(ARCH_PUMPKIN_PLANT);
-    bush->size = get_sprite_size(SPRITE_tomato);
-    bush->health = plant_health;
-    bush->is_destroyable = true;
+    Entity* pumpkin_plant = entity_create();
+    pumpkin_plant->position = round_pos_to_tile(x, y, TILE_SIZE);
+    pumpkin_plant->arch = ARCH_PUMPKIN_PLANT;
+    pumpkin_plant->sprite_id = get_sprite_id_from_arch(ARCH_PUMPKIN_PLANT);
+    pumpkin_plant->size = get_sprite_size(SPRITE_pumpkin);
+    pumpkin_plant->health = get_max_health(ARCH_PUMPKIN_PLANT);
+    pumpkin_plant->max_health = get_max_health(ARCH_PUMPKIN_PLANT);
+    pumpkin_plant->is_destroyable = true;
   }
   Entity* wood = entity_create();
   wood->position = round_pos_to_tile(20, 30, TILE_SIZE);
@@ -1847,4 +1855,25 @@ void update_entity_frame(Entity* entity) {
     Vector2 sprite_size = get_sprite_size(entity->sprite_id);
     entity_sprite->frameRec.x = (float)entity->currentFrame * sprite_size.x;
   }
+}
+
+int get_max_health(ArchetypeID arch) {
+  switch (arch) {
+    case ARCH_PLAYER:
+      return 100;
+    case ARCH_ROCK:
+      return 5;
+    case ARCH_TREE:
+      return 10;
+    case ARCH_TOMATO_PLANT:
+      return 1;
+    case ARCH_PUMPKIN_PLANT:
+      return 1;
+    case ARCH_CORN_PLANT:
+      return 1;
+    case ARCH_PLANT:
+      return 1;
+    default:
+      return 100;
+  };
 }
