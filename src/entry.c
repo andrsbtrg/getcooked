@@ -1091,8 +1091,8 @@ void update_draw_frame() {
           // draw cooking effects
           if (entity->is_cookware && entity->currently_cooking) {
             double time_left = entity->cooking_endtime - GetTime();
-            DrawText(TextFormat("%i", (int)ceil(time_left)), entity->position.x,
-                     entity->position.y, 2, WHITE);
+            DrawRectangle(entity->position.x, entity->position.y,
+                          (int)ceil(time_left), 2, GREEN);
           }
           break;
         }
