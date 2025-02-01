@@ -27,6 +27,7 @@ typedef enum ArchetypeID {
   ARCH_PUMPKIN_ITEM,
   ARCH_TOMATO_ITEM,
   ARCH_CORN_ITEM,
+  ARCH_BRICK,
 
   // crafting
   ARCH_CRAFT_TABLE,
@@ -166,6 +167,7 @@ typedef enum SpriteID {
   SPRITE_oven,
   SPRITE_grill,
   SPRITE_shadow,
+  SPRITE_brick,
 
   SPRITE_FOOD_nil,
   SPRITE_FOOD_burger,
@@ -242,6 +244,7 @@ typedef struct Entity {
   bool is_destroyable;
   bool is_item;
   bool is_food;
+  bool is_pickup;
   bool render_sprite;
   bool is_cookware;
   bool currently_cooking;
@@ -277,6 +280,7 @@ typedef enum CraftingID {
   CRAFTING_pot,
   CRAFTING_oven,
   CRAFTING_grill,
+  CRAFTING_brick,
   CRAFTING_MAX,
 } CraftingID;
 
@@ -285,6 +289,8 @@ typedef struct CraftingData {
   SpriteID sprite_id;
   // This is the entity Archetype that this Crafting action will create
   ArchetypeID to_craft;
+  // The station that is able to craft this item
+  ArchetypeID station;
   // Time required to craft (seconds)
   float time_to_craft;
   ItemData requirements[MAX_REQUIREMENTS];
@@ -336,7 +342,7 @@ CraftingData crafts[CRAFTING_MAX];
 CookingData cooking_data[COOKING_MAX];
 const WorldResourceData world_resources[] = {
     // {ARCH_TREE, 10.f, 10},
-    {ARCH_ROCK, 5.f, 12},
+    {ARCH_ROCK, 5.f, 15},
     // {ARCH_TOMATO_PLANT, 5.f, 10},
     // {ARCH_PUMPKIN_PLANT, 10.f, 7},
     {ARCH_PLANT, 15.f, 12},
@@ -464,6 +470,8 @@ const char* get_arch_name(ArchetypeID arch) {
       return "Pizza";
     case ARCH_FOOD_tomato_soup:
       return "Tomato soup";
+    case ARCH_BRICK:
+      return "Brick";
     default:
       return "missingname";
   };
@@ -554,7 +562,7 @@ ArchetypeID get_drop_from(Entity* destroyed) {
     case ARCH_SOIL:
       return ARCH_NIL;
     default:
-      return ARCH_NIL;
+      return destroyed->arch;
   }
 }
 
@@ -596,6 +604,8 @@ SpriteID get_sprite_id_from_arch(ArchetypeID arch) {
       return SPRITE_oven;
     case ARCH_GRILL:
       return SPRITE_grill;
+    case ARCH_BRICK:
+      return SPRITE_brick;
     case ARCH_MAX:
       break;
     default:
@@ -685,6 +695,7 @@ void load_sprites() {
   load_sprite("assets/grill.png", SPRITE_grill, 1);
   load_sprite("assets/oven.png", SPRITE_oven, 1);
   load_sprite("assets/shadow.png", SPRITE_shadow, 1);
+  load_sprite("assets/brick.png", SPRITE_brick, 1);
 
   for (int i = FOOD_nil; i < FOOD_MAX - 1; i++) {
     const char* filename = TextFormat("assets/fnb_sprite/%i.png", i);
@@ -721,7 +732,7 @@ float v2_distance_sq(Vector2 a, Vector2 b) {
 
 bool is_cooking_system(ArchetypeID arch) {
   switch (arch) {
-    case ARCH_OVEN:
+    // case ARCH_OVEN:
     case ARCH_STOCK_POT:
     case ARCH_GRILL:
       return true;
@@ -751,22 +762,34 @@ void setup_crafting_data() {
   crafts[CRAFTING_pot] =
       (CraftingData){.sprite_id = SPRITE_stock_pot,
                      .to_craft = ARCH_STOCK_POT,
+                     .station = ARCH_CRAFT_TABLE,
                      .time_to_craft = 10.0,
                      .requirements = {rock_item(0), wood_item(0)},
                      .n_requirements = 2};
 
   crafts[CRAFTING_oven] = (CraftingData){.sprite_id = SPRITE_oven,
                                          .to_craft = ARCH_OVEN,
+                                         .station = ARCH_CRAFT_TABLE,
                                          .time_to_craft = 10.0,
                                          .requirements = {rock_item(4)},
                                          .n_requirements = 1};
 
   crafts[CRAFTING_grill] =
       (CraftingData){.sprite_id = SPRITE_grill,
+                     .station = ARCH_CRAFT_TABLE,
                      .to_craft = ARCH_GRILL,
                      .time_to_craft = 6.0,
                      .requirements = {rock_item(1), wood_item(3)},
                      .n_requirements = 2};
+
+  crafts[CRAFTING_brick] = (CraftingData){
+      .station = ARCH_OVEN,
+      .sprite_id = SPRITE_brick,
+      .to_craft = ARCH_BRICK,
+      .time_to_craft = 6.0,
+      .requirements = {rock_item(1)},
+      .n_requirements = 1,
+  };
 }
 
 CookingData* cooking_data_create() {
@@ -1093,7 +1116,7 @@ void update_draw_frame() {
           if (entity->is_cookware && entity->currently_cooking) {
             double time_left = entity->cooking_endtime - GetTime();
             DrawRectangle(entity->position.x, entity->position.y,
-                          (int)ceil(time_left), 2, GREEN);
+                          (int)ceil(time_left), 2, ORANGE);
           }
           if (entity->health < entity->max_health) {
             DrawRectangle(entity->position.x, entity->position.y,
@@ -1111,7 +1134,7 @@ void update_draw_frame() {
     if (world_frame.near_player) {
       ArchetypeID arch = world_frame.near_player->arch;
       if (world->ux_state != UX_placing) {
-        if (arch == ARCH_CRAFT_TABLE) {
+        if (arch == ARCH_CRAFT_TABLE || arch == ARCH_OVEN) {
           world->ux_state = UX_crafting;
         } else if (is_cooking_system(arch)) {
           world->ux_state = UX_cooking;
@@ -1241,12 +1264,26 @@ void update_draw_frame() {
         texture_pos = v2(texture_pos.x, texture_pos.y - offset);
         rec_color = GOLD;
         rec_color.a = 50;
-        // TODO: Fix ui animation
-        // animate_v2_to_target(
-        //     &texture_pos, v2(texture_pos.x, texture_pos.y - 100),
-        //     dt, 1.0f);
         DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
                  text_pos.y - 20, 18, WHITE);
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+          // place item
+          Entity* en = entity_create();
+          ArchetypeID arch = (ArchetypeID)i;
+          en->arch = arch;
+          en->position = round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
+                                           TILE_SIZE);
+          en->sprite_id = get_sprite_id_from_arch(arch);
+          en->size = get_sprite_size(en->sprite_id);
+          en->is_destroyable = true;
+          en->is_item = true;
+          en->health = 1;
+          en->is_pickup = true;
+          // exit craft mode
+          world->ux_state = UX_nil;
+          // reduce the inventory
+          world->inventory_items[arch].amount -= 1;
+        }
       }
       DrawRectangleRec(rec, rec_color);
 
@@ -1273,20 +1310,26 @@ void update_draw_frame() {
     Rectangle ui_container = {ui_origin_x, ui_origin_y, 6 * icon_size,
                               4 * icon_size};
 
-    // container rec
-    DrawRectangleRec(ui_container, rec_color);
-
     // draw crafting options
+    // x keeps count of the crafts that are available to craete are current
+    // station
+    int x = 0;
     for (int i = 1; i < CRAFTING_MAX; i++) {
       CraftingID craft_id = (CraftingID)i;
       CraftingData craft = crafts[craft_id];
-      Vector2 texture_pos = v2(ui_origin_x + 50 * i, ScreenHeight * 0.5);
+      // display only crafts that can be made on cooking station near player
+      if (craft.station != world_frame.near_player->arch) {
+        continue;
+      }
+      x += 1;
+      Vector2 texture_pos = v2(ui_origin_x + 50 * x, ScreenHeight * 0.5);
       Vector2 text_pos = v2(ui_container.x, ui_container.y);
 
       Rectangle icon_rec =
           (Rectangle){texture_pos.x, texture_pos.y, icon_size, icon_size};
 
-      DrawRectangleRec(icon_rec, rec_color);
+      Color inner_rec_color = rec_color;
+
       Texture2D texture = sprites[craft.sprite_id].texture;
       // :placing craft
       if (CheckCollisionPointRec(mouse_pos_screen, icon_rec) &&
@@ -1297,11 +1340,14 @@ void update_draw_frame() {
         }
       }
 
+      // mouse hovering on craft
       if (CheckCollisionPointRec(mouse_pos_screen, icon_rec)) {
+        // container rec
+        DrawRectangleRec(ui_container, rec_color);
         float offset = 4 + sin(4 * GetTime());
         texture_pos = v2(texture_pos.x, texture_pos.y - offset);
-        rec_color = GOLD;
-        rec_color.a = 50;
+        inner_rec_color = GOLD;
+        inner_rec_color.a = 50;
         DrawText(get_arch_name(craft.to_craft), text_pos.x, text_pos.y - 24, 20,
                  WHITE);
 
@@ -1325,6 +1371,8 @@ void update_draw_frame() {
                    ui_origin_y + padding + j * icon_size, 18, text_color);
         }
       }
+
+      DrawRectangleRec(icon_rec, inner_rec_color);  // rectangle behind icon
       DrawTexturePro(
           texture,
           (Rectangle){0, 0, (float)texture.width, (float)texture.height},
@@ -1366,10 +1414,11 @@ void update_draw_frame() {
             round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y, TILE_SIZE);
         en->sprite_id = craft.sprite_id;
         en->size = get_sprite_size(craft.sprite_id);
-        en->is_destroyable = false;
+        en->is_destroyable = true;
         en->is_cookware = true;
         en->is_item = false;
-        en->health = 100;
+        en->health = 1;
+        en->is_pickup = true;
         // exit craft mode
         world->ux_state = UX_nil;
 
@@ -1383,7 +1432,7 @@ void update_draw_frame() {
   }
   // :ui cooking
   else if (world->ux_state == UX_cooking) {
-    DrawRectangle(0, 0, ScreenWidth, ScreenHeight, (Color){50, 0, 0, 50});
+    DrawRectangle(0, 0, ScreenWidth, ScreenHeight, (Color){50, 50, 50, 50});
     const char* text = "Cooking...";
     int fontsize = 20;
     int text_width = MeasureText(text, fontsize);
@@ -1495,6 +1544,15 @@ void init_entities() {
   player->size = get_sprite_size(SPRITE_player);
   player->health = 10;
   player->is_destroyable = false;
+
+  Entity* rock = entity_create();
+  rock->arch = ARCH_ROCK;
+  rock->position = round_pos_to_tile(10, -5, TILE_SIZE);
+  rock->sprite_id = SPRITE_rock;
+  rock->size = get_sprite_size(SPRITE_rock);
+  rock->health = rock_health;
+  rock->max_health = rock_health;
+  rock->is_destroyable = true;
 
   Entity* kitchen = entity_create();
   kitchen->arch = ARCH_CRAFT_TABLE;
