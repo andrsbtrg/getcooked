@@ -483,7 +483,7 @@ const char* get_arch_name(ArchetypeID arch) {
   };
 }
 
-static inline int get_dpi_scale() {
+static inline int get_dpi_scale(void) {
 #if defined(PLATFORM_WEB)
   return 1;
 #else
@@ -491,15 +491,15 @@ static inline int get_dpi_scale() {
 #endif
 }
 
-entity_t* entity_create();
+entity_t* entity_create(void);
 entity_t* create_food(entity_t* cooking_station, Vector2 position);
 sprite_t load_sprite(const char* path, SpriteID id, int frames);
-void init_entities();
+void init_entities(void);
 void update_player(entity_t* player);
 void setup_window(void);
-Camera2D* setup_camera();
+Camera2D* setup_camera(void);
 void update_camera(Camera2D*, entity_t*, float dt);
-void unload_textures();
+void unload_textures(void);
 void draw_sprite(entity_t* entity, Vector2 offset);
 void update_entity_frame(entity_t* entity);
 int get_max_health(ArchetypeID arch);
@@ -644,7 +644,7 @@ entity_t* create_item_drop(entity_t* destroyed) {
   return item;
 }
 
-void setup_inventory() {
+void setup_inventory(void) {
   for (int i = 0; i < ARCH_MAX; i++) {
     item_data_t* idata = &world->inventory_items[i];
     ArchetypeID arch = (ArchetypeID)i;
@@ -653,7 +653,7 @@ void setup_inventory() {
   }
 }
 
-void setup_recipes() {
+void setup_recipes(void) {
   // :recipes
   recipes[0] = (recipe_t){
       .result = FOOD_egg,
@@ -675,7 +675,7 @@ void setup_recipes() {
   };
 }
 
-void load_sprites() {
+void load_sprites(void) {
   load_sprite("assets/missing.png", SPRITE_nil, 1);
 
   load_sprite("assets/player.png", SPRITE_player, 3);
@@ -710,7 +710,7 @@ void load_sprites() {
   }
 }
 
-Vector2 get_mouse_position() {
+Vector2 get_mouse_position(void) {
   Vector2 mouse_pos_screen = GetMousePosition();
   // Apply DPI scaling to the mouse position
   int dpi_scale = get_dpi_scale();
@@ -719,7 +719,7 @@ Vector2 get_mouse_position() {
   return mouse_pos_screen;
 }
 
-world_t* init_world() {
+world_t* init_world(void) {
   world_t* world = (world_t*)malloc(sizeof(world_t));
   *world = (world_t){0};
   world->ux_state = UX_nil;
@@ -761,12 +761,12 @@ bool check_craft_requirements(crafting_data_t craft,
   return true;
 }
 
-bool action_button_pressed() {
+bool action_button_pressed(void) {
   return IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_SPACE);
 }
 
 // This is const data and shouldn't change during runtime
-void setup_crafting_data() {
+void setup_crafting_data(void) {
   crafts[CRAFTING_pot] =
       (crafting_data_t){.sprite_id = SPRITE_stock_pot,
                         .to_craft = ARCH_STOCK_POT,
@@ -800,7 +800,7 @@ void setup_crafting_data() {
   };
 }
 
-cooking_data_t* cooking_data_create() {
+cooking_data_t* cooking_data_create(void) {
   cooking_data_t* found = NULL;
   for (int i = 0; i < COOKING_MAX; i++) {
     cooking_data_t* c = &cooking_data[i];
@@ -847,7 +847,7 @@ bool cooking_add_ingredients(entity_t* cooking_station,
   return false;
 }
 
-void draw_shadow(entity_t* entity, Rectangle rec, float offset) {
+void draw_shadow(entity_t* entity, float offset) {
   Texture tex = sprites[SPRITE_shadow].texture;
   float v_offset = 2 * (entity->size.x / tex.width);
   Vector2 shadow_pos =
@@ -924,12 +924,12 @@ int main(void) {
   return 0;
 }
 
-void update_draw_frame() {
+void update_draw_frame(void) {
   float dt = GetFrameTime();
   update_camera(camera, player, dt);
 
   BeginDrawing();
-  ClearBackground((Color){106, 118, 63});
+  ClearBackground((Color){106, 118, 63, 0});
 
   update_player(player);
   world_frame_t world_frame = {0};
@@ -965,7 +965,7 @@ void update_draw_frame() {
 
   // :spawn resources
   {
-    for (int i = 0; i < ARRAY_LEN(world_resources); i++) {
+    for (int i = 0; i < (int)ARRAY_LEN(world_resources); i++) {
       world_resource_t data = world_resources[i];
 
       // TODO: replace with count state to avoid counting each frame
@@ -1118,7 +1118,7 @@ void update_draw_frame() {
             sprite_offset.y = offset;
           }
 
-          draw_shadow(entity, rec, sprite_offset.y);
+          draw_shadow(entity, sprite_offset.y);
 
           draw_sprite(entity, sprite_offset);
           // draw cooking effects
@@ -1516,7 +1516,7 @@ void update_draw_frame() {
             world->inventory_items[world->holding.arch].amount -=
                 world->holding.amount;
             // drop items
-            world->holding = (item_data_t){};
+            world->holding = (item_data_t){0};
           }
         }
       }
@@ -1547,7 +1547,7 @@ void update_draw_frame() {
 /*
  * Create entities
  */
-void init_entities() {
+void init_entities(void) {
   int rock_health = get_max_health(ARCH_ROCK);
   int tree_health = get_max_health(ARCH_TREE);
 
@@ -1638,7 +1638,7 @@ void init_entities() {
   return;
 }
 
-Camera2D* setup_camera() {
+Camera2D* setup_camera(void) {
   Camera2D* camera2d = (Camera2D*)malloc(sizeof(Camera2D));
   int width = GetRenderWidth();
   int height = GetRenderHeight();
@@ -1690,7 +1690,7 @@ void update_player(entity_t* player) {
 /*
  * Initialize and set the Window size
  */
-void setup_window() {
+void setup_window(void) {
   InitWindow(ScreenWidth, ScreenHeight, "Game");
   return;
 }
@@ -1698,7 +1698,7 @@ void setup_window() {
 /*
  * Create a new entity inside the world
  */
-entity_t* entity_create() {
+entity_t* entity_create(void) {
   entity_t* found = 0;
   for (int i = 0; i < MAX_ENTITIES; i++) {
     entity_t* existing = &world->entities[i];
@@ -1891,7 +1891,7 @@ sprite_t load_sprite(const char* path, SpriteID id, int frames) {
 /*
  * Unloads all loaded textures
  */
-void unload_textures() {
+void unload_textures(void) {
   for (int i = 0; i < SPRITE_MAX; i++) {
     Texture2D texture = sprites[i].texture;
     UnloadTexture(texture);

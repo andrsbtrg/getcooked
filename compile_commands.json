@@ -3,6 +3,9 @@
     "arguments": [
       "/usr/bin/gcc",
       "-c",
+      "-Wextra",
+      "-Wpedantic",
+      "-Warray-bounds",
       "raylib/lib/libraylib.a",
       "-Iraylib/include",
       "-O0",
