@@ -229,7 +229,7 @@ typedef struct Sprite {
   SpriteID id;
   int frames;
   Rectangle frameRec;
-} Sprite;
+} sprite_t;
 
 typedef struct Entity {
   Vector2 position;
@@ -251,20 +251,20 @@ typedef struct Entity {
   float distort;
   int currentFrame;
   int frameCounter;
-} Entity;
+} entity_t;
 
 typedef struct ItemData {
   int amount;
   ArchetypeID arch;
   FoodID food_id;
-} ItemData;
+} item_data_t;
 
-static inline ItemData rock_item(int amount) {
-  return (ItemData){.amount = amount, .arch = ARCH_ROCK_ITEM};
+static inline item_data_t rock_item(int amount) {
+  return (item_data_t){.amount = amount, .arch = ARCH_ROCK_ITEM};
 }
 
-static inline ItemData wood_item(int amount) {
-  return (ItemData){.amount = amount, .arch = ARCH_WOOD_ITEM};
+static inline item_data_t wood_item(int amount) {
+  return (item_data_t){.amount = amount, .arch = ARCH_WOOD_ITEM};
 }
 
 static inline bool arch_is_food(ArchetypeID arch) {
@@ -293,9 +293,9 @@ typedef struct CraftingData {
   ArchetypeID station;
   // Time required to craft (seconds)
   float time_to_craft;
-  ItemData requirements[MAX_REQUIREMENTS];
+  item_data_t requirements[MAX_REQUIREMENTS];
   int n_requirements;
-} CraftingData;
+} crafting_data_t;
 
 // Maximum number of ingredients for one dish
 #define MAX_INGREDIENTS 6
@@ -305,26 +305,26 @@ typedef struct CraftingData {
 typedef struct CookingData {
   bool is_valid;
   // points to an entity which is a cooking station
-  Entity* cooking_on;
+  entity_t* cooking_on;
   float time_to_cook;
   // array of ingrediens in the cooking station at the time of cooking
-  ItemData ingredients[MAX_INGREDIENTS];
+  item_data_t ingredients[MAX_INGREDIENTS];
   int n_ingredients;
   float cooking_end_time;
-} CookingData;
+} cooking_data_t;
 
 typedef struct Recipe {
   FoodID result;
   ArchetypeID cooking_station;
   ArchetypeID ingredients[MAX_INGREDIENTS];
   int n_ingredients;
-} Recipe;
+} recipe_t;
 
 typedef struct WorldResourceData {
   ArchetypeID arch;
   float spawn_interval;
   int max_count;
-} WorldResourceData;
+} world_resource_t;
 
 typedef enum UX_State {
   UX_nil,
@@ -334,27 +334,26 @@ typedef enum UX_State {
   UX_placing,
 } UX_State;
 
-struct World;
 // :globals
 struct World* world;
-Sprite sprites[SPRITE_MAX];
-CraftingData crafts[CRAFTING_MAX];
-CookingData cooking_data[COOKING_MAX];
-const WorldResourceData world_resources[] = {
+sprite_t sprites[SPRITE_MAX];
+crafting_data_t crafts[CRAFTING_MAX];
+cooking_data_t cooking_data[COOKING_MAX];
+const world_resource_t world_resources[] = {
     // {ARCH_TREE, 10.f, 10},
     {ARCH_ROCK, 5.f, 15},
     // {ARCH_TOMATO_PLANT, 5.f, 10},
     // {ARCH_PUMPKIN_PLANT, 10.f, 7},
     {ARCH_PLANT, 15.f, 12},
 };
-Recipe recipes[100];
+recipe_t recipes[100];
 Sound destroy_sound;
 Sound pickup_sound;
 
 int ScreenWidth = 800;
 int ScreenHeight = 600;
 Camera2D* camera;
-Entity* player;
+entity_t* player;
 
 // :consts
 
@@ -365,33 +364,40 @@ const int FRAME_SPEED = 8;
 
 #define MAX_ENTITIES 1024
 
+typedef struct PlayerHealth {
+  int max_health;
+  int current_health;
+  int drop_rate;
+} player_health_t;
+
 typedef struct World {
-  Entity entities[MAX_ENTITIES];
-  ItemData inventory_items[ARCH_MAX];
+  entity_t entities[MAX_ENTITIES];
+  item_data_t inventory_items[ARCH_MAX];
   UX_State ux_state;
   CraftingID placing;
-  ItemData holding;
+  item_data_t holding;
   float spawn_data[ARRAY_LEN(world_resources)];
-} World;
+  player_health_t health;
+} world_t;
 
 typedef struct EntitySort {
   int index;
   float y_pos;
   bool is_valid;
-} EntitySort;
+} entity_sort_t;
 
 int compare(const void* a, const void* b) {
-  float float_a = ((EntitySort*)a)->y_pos;
-  float float_b = ((EntitySort*)b)->y_pos;
+  float float_a = ((entity_sort_t*)a)->y_pos;
+  float float_b = ((entity_sort_t*)b)->y_pos;
   return (float_a - float_b);
 }
 
 typedef struct WorldFrame {
-  EntitySort entities_ysort[MAX_ENTITIES];
-  Entity* selected;
-  Entity* near_player;
-  Entity* near_pickup;
-} WorldFrame;
+  entity_sort_t entities_ysort[MAX_ENTITIES];
+  entity_t* selected;
+  entity_t* near_player;
+  entity_t* near_pickup;
+} world_frame_t;
 
 static inline Vector2 v2(float x, float y) {
   return (Vector2){x, y};
@@ -406,7 +412,7 @@ static inline Rectangle expand_rectangle(Rectangle rec, float offset) {
   };
 }
 
-static inline Rectangle get_entity_rec(Entity* entity) {
+static inline Rectangle get_entity_rec(entity_t* entity) {
   return (Rectangle){entity->position.x, entity->position.y, entity->size.x,
                      entity->size.y};
 }
@@ -485,17 +491,17 @@ static inline int get_dpi_scale() {
 #endif
 }
 
-Entity* entity_create();
-Entity* create_food(Entity* cooking_station, Vector2 position);
-Sprite load_sprite(const char* path, SpriteID id, int frames);
+entity_t* entity_create();
+entity_t* create_food(entity_t* cooking_station, Vector2 position);
+sprite_t load_sprite(const char* path, SpriteID id, int frames);
 void init_entities();
-void update_player(Entity* player);
+void update_player(entity_t* player);
 void setup_window(void);
 Camera2D* setup_camera();
-void update_camera(Camera2D*, Entity*, float dt);
+void update_camera(Camera2D*, entity_t*, float dt);
 void unload_textures();
-void draw_sprite(Entity* entity, Vector2 offset);
-void update_entity_frame(Entity* entity);
+void draw_sprite(entity_t* entity, Vector2 offset);
+void update_entity_frame(entity_t* entity);
 int get_max_health(ArchetypeID arch);
 
 // :colors
@@ -527,23 +533,23 @@ Vector2 round_pos_to_tile(int x, int y, float tile_size) {
 }
 
 Vector2 get_sprite_size(SpriteID id) {
-  Sprite sprite = sprites[id];
+  sprite_t sprite = sprites[id];
   return v2(sprite.texture.width / (float)sprite.frames, sprite.texture.height);
 }
 
-Vector2 get_entity_center(Entity* entity) {
+Vector2 get_entity_center(entity_t* entity) {
   return (Vector2){
       entity->position.x + entity->size.x * 0.5f,
       entity->position.y + entity->size.x * 0.5f,
   };
 }
 
-void entity_destroy(Entity* entity) {
+void entity_destroy(entity_t* entity) {
   entity->is_valid = false;
   entity = 0;
 }
 
-ArchetypeID get_drop_from(Entity* destroyed) {
+ArchetypeID get_drop_from(entity_t* destroyed) {
   switch (destroyed->arch) {
     case ARCH_ROCK:
       return ARCH_ROCK_ITEM;
@@ -621,12 +627,12 @@ SpriteID get_sprite_id_from_arch(ArchetypeID arch) {
   return SPRITE_nil;
 }
 
-Entity* create_item_drop(Entity* destroyed) {
+entity_t* create_item_drop(entity_t* destroyed) {
   ArchetypeID arch_drop = get_drop_from(destroyed);
   SpriteID sprite_id = get_sprite_id_from_arch(arch_drop);
   Vector2 size = get_sprite_size(sprite_id);
 
-  Entity* item = entity_create();
+  entity_t* item = entity_create();
   Vector2 destroyed_pos = destroyed->position;
   item->position = round_pos_to_tile(
       destroyed_pos.x, destroyed_pos.y + destroyed->size.y, TILE_SIZE);
@@ -640,7 +646,7 @@ Entity* create_item_drop(Entity* destroyed) {
 
 void setup_inventory() {
   for (int i = 0; i < ARCH_MAX; i++) {
-    ItemData* idata = &world->inventory_items[i];
+    item_data_t* idata = &world->inventory_items[i];
     ArchetypeID arch = (ArchetypeID)i;
     idata->amount = 0;
     idata->arch = arch;
@@ -649,19 +655,19 @@ void setup_inventory() {
 
 void setup_recipes() {
   // :recipes
-  recipes[0] = (Recipe){
+  recipes[0] = (recipe_t){
       .result = FOOD_egg,
       .cooking_station = ARCH_GRILL,
       .ingredients = {ARCH_ROCK_ITEM},
       .n_ingredients = 1,
   };
-  recipes[1] = (Recipe){
+  recipes[1] = (recipe_t){
       .result = FOOD_tomato_soup,
       .cooking_station = ARCH_STOCK_POT,
       .ingredients = {ARCH_TOMATO_ITEM},
       .n_ingredients = 1,
   };
-  recipes[2] = (Recipe){
+  recipes[2] = (recipe_t){
       .result = FOOD_pizza_whole,
       .cooking_station = ARCH_OVEN,
       .ingredients = {ARCH_TOMATO_ITEM, ARCH_WOOD_ITEM},
@@ -713,10 +719,12 @@ Vector2 get_mouse_position() {
   return mouse_pos_screen;
 }
 
-World* init_world() {
-  World* world = (World*)malloc(sizeof(World));
-  *world = (World){0};
+world_t* init_world() {
+  world_t* world = (world_t*)malloc(sizeof(world_t));
+  *world = (world_t){0};
   world->ux_state = UX_nil;
+  world->health = (player_health_t){
+      .max_health = 100, .current_health = 100, .drop_rate = 0};
   // for (int i = 0; i < ARRAY_LEN(world->spawn_data); i++) {
   //   world->spawn_data[i] = 0.0f;
   // }
@@ -741,10 +749,10 @@ bool is_cooking_system(ArchetypeID arch) {
   }
 }
 
-bool check_craft_requirements(CraftingData craft,
-                              const ItemData inventory_items[ARCH_MAX]) {
+bool check_craft_requirements(crafting_data_t craft,
+                              const item_data_t inventory_items[ARCH_MAX]) {
   for (int i = 0; i < craft.n_requirements; i++) {
-    ItemData req = craft.requirements[i];
+    item_data_t req = craft.requirements[i];
     int have = inventory_items[req.arch].amount;
     if (req.amount > have) {
       return false;
@@ -760,29 +768,29 @@ bool action_button_pressed() {
 // This is const data and shouldn't change during runtime
 void setup_crafting_data() {
   crafts[CRAFTING_pot] =
-      (CraftingData){.sprite_id = SPRITE_stock_pot,
-                     .to_craft = ARCH_STOCK_POT,
-                     .station = ARCH_CRAFT_TABLE,
-                     .time_to_craft = 10.0,
-                     .requirements = {rock_item(0), wood_item(0)},
-                     .n_requirements = 2};
+      (crafting_data_t){.sprite_id = SPRITE_stock_pot,
+                        .to_craft = ARCH_STOCK_POT,
+                        .station = ARCH_CRAFT_TABLE,
+                        .time_to_craft = 10.0,
+                        .requirements = {rock_item(0), wood_item(0)},
+                        .n_requirements = 2};
 
-  crafts[CRAFTING_oven] = (CraftingData){.sprite_id = SPRITE_oven,
-                                         .to_craft = ARCH_OVEN,
-                                         .station = ARCH_CRAFT_TABLE,
-                                         .time_to_craft = 10.0,
-                                         .requirements = {rock_item(4)},
-                                         .n_requirements = 1};
+  crafts[CRAFTING_oven] = (crafting_data_t){.sprite_id = SPRITE_oven,
+                                            .to_craft = ARCH_OVEN,
+                                            .station = ARCH_CRAFT_TABLE,
+                                            .time_to_craft = 10.0,
+                                            .requirements = {rock_item(4)},
+                                            .n_requirements = 1};
 
   crafts[CRAFTING_grill] =
-      (CraftingData){.sprite_id = SPRITE_grill,
-                     .station = ARCH_CRAFT_TABLE,
-                     .to_craft = ARCH_GRILL,
-                     .time_to_craft = 6.0,
-                     .requirements = {rock_item(1), wood_item(3)},
-                     .n_requirements = 2};
+      (crafting_data_t){.sprite_id = SPRITE_grill,
+                        .station = ARCH_CRAFT_TABLE,
+                        .to_craft = ARCH_GRILL,
+                        .time_to_craft = 6.0,
+                        .requirements = {rock_item(1), wood_item(3)},
+                        .n_requirements = 2};
 
-  crafts[CRAFTING_brick] = (CraftingData){
+  crafts[CRAFTING_brick] = (crafting_data_t){
       .station = ARCH_OVEN,
       .sprite_id = SPRITE_brick,
       .to_craft = ARCH_BRICK,
@@ -792,24 +800,24 @@ void setup_crafting_data() {
   };
 }
 
-CookingData* cooking_data_create() {
-  CookingData* found = NULL;
+cooking_data_t* cooking_data_create() {
+  cooking_data_t* found = NULL;
   for (int i = 0; i < COOKING_MAX; i++) {
-    CookingData* c = &cooking_data[i];
+    cooking_data_t* c = &cooking_data[i];
     if (!c->is_valid) {
       found = c;
       break;
     }
   }
-  *found = (CookingData){0};
+  *found = (cooking_data_t){0};
   found->is_valid = true;
   return found;
 }
 
-CookingData* get_cooking_data(Entity* cooking_station) {
-  CookingData* found = NULL;
+cooking_data_t* get_cooking_data(entity_t* cooking_station) {
+  cooking_data_t* found = NULL;
   for (int i = 0; i < COOKING_MAX; i++) {
-    CookingData* c = &cooking_data[i];
+    cooking_data_t* c = &cooking_data[i];
     if (c->cooking_on == cooking_station) {
       found = c;
       // assert(c->is_valid);
@@ -818,8 +826,9 @@ CookingData* get_cooking_data(Entity* cooking_station) {
   }
   return found;
 }
-bool cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
-  CookingData* data = get_cooking_data(cooking_station);
+bool cooking_add_ingredients(entity_t* cooking_station,
+                             item_data_t ingredient) {
+  cooking_data_t* data = get_cooking_data(cooking_station);
   if (data == NULL) {
     // init cooking data
     data = cooking_data_create();
@@ -827,7 +836,7 @@ bool cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
   }
   for (int i = 0; i < MAX_INGREDIENTS; i++) {
     if (data->ingredients[i].arch == ARCH_NIL) {
-      ItemData* found = &data->ingredients[i];
+      item_data_t* found = &data->ingredients[i];
       found->arch = ingredient.arch;
       found->amount = ingredient.amount;
       data->n_ingredients++;
@@ -838,7 +847,7 @@ bool cooking_add_ingredients(Entity* cooking_station, ItemData ingredient) {
   return false;
 }
 
-void draw_shadow(Entity* entity, Rectangle rec, float offset) {
+void draw_shadow(entity_t* entity, Rectangle rec, float offset) {
   Texture tex = sprites[SPRITE_shadow].texture;
   float v_offset = 2 * (entity->size.x / tex.width);
   Vector2 shadow_pos =
@@ -863,7 +872,7 @@ void draw_shadow(Entity* entity, Rectangle rec, float offset) {
 
 void update_draw_frame(void);
 
-void hit_animation(Entity* entity) {
+void hit_animation(entity_t* entity) {
   entity->distort = 5.0f;
 }
 
@@ -923,7 +932,7 @@ void update_draw_frame() {
   ClearBackground((Color){106, 118, 63});
 
   update_player(player);
-  WorldFrame world_frame = {0};
+  world_frame_t world_frame = {0};
 
   Vector2 mouse_pos_screen = get_mouse_position();
 
@@ -957,12 +966,12 @@ void update_draw_frame() {
   // :spawn resources
   {
     for (int i = 0; i < ARRAY_LEN(world_resources); i++) {
-      WorldResourceData data = world_resources[i];
+      world_resource_t data = world_resources[i];
 
       // TODO: replace with count state to avoid counting each frame
       int entity_count = 0;
       for (int x = 0; x < MAX_ENTITIES; x++) {
-        Entity* e = &world->entities[x];
+        entity_t* e = &world->entities[x];
         if (e->arch == data.arch) {
           entity_count += 1;
         }
@@ -981,7 +990,7 @@ void update_draw_frame() {
       if (GetTime() > world->spawn_data[i]) {
         // spawn the thing
         int health = get_max_health(data.arch);
-        Entity* item_to_spawn = entity_create();
+        entity_t* item_to_spawn = entity_create();
         int pos_x = GetRandomValue(-100, 100);
         int pos_y = GetRandomValue(-100, 100);
         SpriteID sprite_id = get_sprite_id_from_arch(data.arch);
@@ -999,7 +1008,7 @@ void update_draw_frame() {
 
   // :loop update all entities
   for (int i = 0; i < MAX_ENTITIES; i++) {
-    Entity* entity = &world->entities[i];
+    entity_t* entity = &world->entities[i];
     if (NULL == entity) {
       continue;
     }
@@ -1063,15 +1072,15 @@ void update_draw_frame() {
   {
     for (int i = 0; i < MAX_ENTITIES; i++) {
       if (world->entities[i].is_valid) {
-        Entity this = world->entities[i];
+        entity_t this = world->entities[i];
         world_frame.entities_ysort[i] =
-            (EntitySort){.index = i,
-                         .y_pos = (this.position.y + this.size.y),
-                         .is_valid = true};
+            (entity_sort_t){.index = i,
+                            .y_pos = (this.position.y + this.size.y),
+                            .is_valid = true};
       }
     }
 
-    qsort(world_frame.entities_ysort, MAX_ENTITIES, sizeof(EntitySort),
+    qsort(world_frame.entities_ysort, MAX_ENTITIES, sizeof(entity_sort_t),
           compare);
   }
 
@@ -1081,7 +1090,7 @@ void update_draw_frame() {
       if (!world_frame.entities_ysort[x].is_valid)
         continue;
       int i = world_frame.entities_ysort[x].index;
-      Entity* entity = &world->entities[i];
+      entity_t* entity = &world->entities[i];
       if (NULL == entity || !entity->is_valid) {
         continue;
       }
@@ -1145,7 +1154,7 @@ void update_draw_frame() {
     // if we are not close to any entity
     else if (world->ux_state == UX_crafting || world->ux_state == UX_cooking) {
       world->ux_state = UX_nil;
-      world->holding = (ItemData){0};
+      world->holding = (item_data_t){0};
     }
 
     // handle open and close inventory
@@ -1153,14 +1162,14 @@ void update_draw_frame() {
       world->ux_state = UX_inventory;
     } else if (IsKeyPressed(KEY_ESCAPE)) {
       world->ux_state = UX_nil;
-      world->holding = (ItemData){0};
+      world->holding = (item_data_t){0};
     }
   }
 
   // :pickup items
   {
     if (world_frame.near_pickup) {
-      Entity* entity_near = world_frame.near_pickup;
+      entity_t* entity_near = world_frame.near_pickup;
       if (entity_near->is_valid && entity_near->is_item) {
         // Pickup animation
         float dist_sq = v2_distance_sq(entity_near->position, player->position);
@@ -1180,7 +1189,7 @@ void update_draw_frame() {
   // :clicking
   {
     if (world->ux_state == UX_nil && action_button_pressed()) {
-      Entity* target = NULL;
+      entity_t* target = NULL;
       // If there are selected item and item near player
       // it will prefer to destroy the item near player
       if (world_frame.near_player) {
@@ -1204,11 +1213,16 @@ void update_draw_frame() {
 
   EndMode2D();
 
+  // :ui status bar
+  {
+    DrawRectangle(1, 1, world->health.current_health, 5, GREEN);
+  }
+
   // :ui quick access
   if (world->ux_state == UX_nil) {
     int item_pos = 0;
     for (int i = 0; i < ARCH_MAX; i++) {
-      ItemData inventory_item = world->inventory_items[i];
+      item_data_t inventory_item = world->inventory_items[i];
       if (inventory_item.amount == 0)
         continue;
       Vector2 texture_pos =
@@ -1251,7 +1265,7 @@ void update_draw_frame() {
     for (int i = 0; i < ARCH_MAX; i++) {
       if (world->inventory_items[i].amount == 0)
         continue;
-      ItemData inventory_item = world->inventory_items[i];
+      item_data_t inventory_item = world->inventory_items[i];
       Vector2 texture_pos =
           v2(-50 + ScreenWidth / 2.0 + 50 * item_pos, ScreenHeight / 2.0 - 40);
       Vector2 text_pos = v2(texture_pos.x, texture_pos.y);
@@ -1268,7 +1282,7 @@ void update_draw_frame() {
                  text_pos.y - 20, 18, WHITE);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
           // place item
-          Entity* en = entity_create();
+          entity_t* en = entity_create();
           ArchetypeID arch = (ArchetypeID)i;
           en->arch = arch;
           en->position = round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y,
@@ -1316,7 +1330,7 @@ void update_draw_frame() {
     int x = 0;
     for (int i = 1; i < CRAFTING_MAX; i++) {
       CraftingID craft_id = (CraftingID)i;
-      CraftingData craft = crafts[craft_id];
+      crafting_data_t craft = crafts[craft_id];
       // display only crafts that can be made on cooking station near player
       if (craft.station != world_frame.near_player->arch) {
         continue;
@@ -1353,7 +1367,7 @@ void update_draw_frame() {
 
         for (int j = 0; j < craft.n_requirements; j++) {
           Color text_color = RED;
-          ItemData req = craft.requirements[j];
+          item_data_t req = craft.requirements[j];
           int player_has = world->inventory_items[req.arch].amount;
           if (player_has >= req.amount) {
             text_color = WHITE;
@@ -1389,7 +1403,7 @@ void update_draw_frame() {
     DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
 
     if (world->placing != CRAFTING_nil) {
-      CraftingData craft = crafts[world->placing];
+      crafting_data_t craft = crafts[world->placing];
       Texture texture = sprites[craft.sprite_id].texture;
 
       int world_factor = camera->zoom / get_dpi_scale();
@@ -1408,7 +1422,7 @@ void update_draw_frame() {
 
       if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         // place craft
-        Entity* en = entity_create();
+        entity_t* en = entity_create();
         en->arch = craft.to_craft;
         en->position =
             round_pos_to_tile(mouse_pos_world.x, mouse_pos_world.y, TILE_SIZE);
@@ -1424,7 +1438,7 @@ void update_draw_frame() {
 
         // reduce the inventory
         for (int x = 0; x < craft.n_requirements; x++) {
-          ItemData req = craft.requirements[x];
+          item_data_t req = craft.requirements[x];
           world->inventory_items[req.arch].amount -= req.amount;
         }
       }
@@ -1437,11 +1451,11 @@ void update_draw_frame() {
     int fontsize = 20;
     int text_width = MeasureText(text, fontsize);
     DrawText(text, ScreenWidth / 2.0 - text_width / 2.0, 20, fontsize, WHITE);
-    Entity* cooking_station = world_frame.near_player;
+    entity_t* cooking_station = world_frame.near_player;
 
     int item_pos = 0;
     for (int i = 0; i < ARCH_MAX; i++) {
-      ItemData inventory_item = world->inventory_items[i];
+      item_data_t inventory_item = world->inventory_items[i];
       if (inventory_item.amount == 0)
         continue;
       Vector2 texture_pos =
@@ -1459,14 +1473,14 @@ void update_draw_frame() {
         DrawText(get_arch_name(world->inventory_items[i].arch), text_pos.x,
                  text_pos.y - 20, 18, WHITE);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-          ItemData holdprev = world->holding;
+          item_data_t holdprev = world->holding;
           if (holdprev.arch == inventory_item.arch) {
             if (world->holding.amount < inventory_item.amount) {
               world->holding.amount += 1;
             }
           } else {
             world->holding =
-                (ItemData){.amount = 1, .arch = inventory_item.arch};
+                (item_data_t){.amount = 1, .arch = inventory_item.arch};
           }
         }
       }
@@ -1486,7 +1500,7 @@ void update_draw_frame() {
     }
     if (world->holding.arch != ARCH_NIL) {
       Vector2 sprite_pos = v2(mouse_pos_screen.x - 20, mouse_pos_screen.y - 20);
-      ItemData holding = world->holding;
+      item_data_t holding = world->holding;
       Color item_text_color = WHITE;
       float scale = 5.0;
       if (CheckCollisionPointRec(mouse_pos_world,
@@ -1502,7 +1516,7 @@ void update_draw_frame() {
             world->inventory_items[world->holding.arch].amount -=
                 world->holding.amount;
             // drop items
-            world->holding = (ItemData){};
+            world->holding = (item_data_t){};
           }
         }
       }
@@ -1537,7 +1551,7 @@ void init_entities() {
   int rock_health = get_max_health(ARCH_ROCK);
   int tree_health = get_max_health(ARCH_TREE);
 
-  Entity* player = entity_create();
+  entity_t* player = entity_create();
   player->arch = ARCH_PLAYER;
   player->position = v2(0, 0);
   player->sprite_id = SPRITE_player;
@@ -1545,7 +1559,7 @@ void init_entities() {
   player->health = 10;
   player->is_destroyable = false;
 
-  Entity* rock = entity_create();
+  entity_t* rock = entity_create();
   rock->arch = ARCH_ROCK;
   rock->position = round_pos_to_tile(10, -5, TILE_SIZE);
   rock->sprite_id = SPRITE_rock;
@@ -1554,7 +1568,7 @@ void init_entities() {
   rock->max_health = rock_health;
   rock->is_destroyable = true;
 
-  Entity* kitchen = entity_create();
+  entity_t* kitchen = entity_create();
   kitchen->arch = ARCH_CRAFT_TABLE;
   kitchen->position = v2(10, 0);
   kitchen->sprite_id = SPRITE_table;
@@ -1565,7 +1579,7 @@ void init_entities() {
   for (int i = 0; i < 10; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
-    Entity* rock = entity_create();
+    entity_t* rock = entity_create();
     rock->arch = ARCH_ROCK;
     rock->position = round_pos_to_tile(x, y, TILE_SIZE);
     rock->sprite_id = SPRITE_rock;
@@ -1578,7 +1592,7 @@ void init_entities() {
   for (int i = 0; i < 10; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
-    Entity* tree = entity_create();
+    entity_t* tree = entity_create();
     tree->position = round_pos_to_tile(x, y, TILE_SIZE);
     tree->arch = ARCH_TREE;
     tree->sprite_id = SPRITE_tree;
@@ -1591,7 +1605,7 @@ void init_entities() {
   for (int i = 0; i < 7; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
-    Entity* tomato_plant = entity_create();
+    entity_t* tomato_plant = entity_create();
     tomato_plant->position = round_pos_to_tile(x, y, TILE_SIZE);
     tomato_plant->arch = ARCH_TOMATO_PLANT;
     tomato_plant->sprite_id = SPRITE_tomato;
@@ -1604,7 +1618,7 @@ void init_entities() {
   for (int i = 0; i < 5; i++) {
     int x = GetRandomValue(-100, 100);
     int y = GetRandomValue(-100, 100);
-    Entity* pumpkin_plant = entity_create();
+    entity_t* pumpkin_plant = entity_create();
     pumpkin_plant->position = round_pos_to_tile(x, y, TILE_SIZE);
     pumpkin_plant->arch = ARCH_PUMPKIN_PLANT;
     pumpkin_plant->sprite_id = get_sprite_id_from_arch(ARCH_PUMPKIN_PLANT);
@@ -1613,7 +1627,7 @@ void init_entities() {
     pumpkin_plant->max_health = get_max_health(ARCH_PUMPKIN_PLANT);
     pumpkin_plant->is_destroyable = true;
   }
-  Entity* wood = entity_create();
+  entity_t* wood = entity_create();
   wood->position = round_pos_to_tile(20, 30, TILE_SIZE);
   wood->arch = ARCH_WOOD_ITEM;
   wood->sprite_id = SPRITE_wood;
@@ -1637,7 +1651,7 @@ Camera2D* setup_camera() {
 }
 
 /// Move player
-void update_player(Entity* player) {
+void update_player(entity_t* player) {
   Vector2 input_axis = v2(0.0, 0.0);
   if (IsKeyDown(KEY_A)) {
     input_axis.x = -1;
@@ -1664,7 +1678,7 @@ void update_player(Entity* player) {
   if (FloatEquals(0.0, movement.x) && FloatEquals(0.0, movement.y)) {
     player->currentFrame = 0;
 
-    Sprite* player_sprite = &sprites[player->sprite_id];
+    sprite_t* player_sprite = &sprites[player->sprite_id];
     player_sprite->frameRec.x = 0;
     return;
   }
@@ -1684,22 +1698,22 @@ void setup_window() {
 /*
  * Create a new entity inside the world
  */
-Entity* entity_create() {
-  Entity* found = 0;
+entity_t* entity_create() {
+  entity_t* found = 0;
   for (int i = 0; i < MAX_ENTITIES; i++) {
-    Entity* existing = &world->entities[i];
+    entity_t* existing = &world->entities[i];
     if (!existing->is_valid) {
       found = existing;
       break;
     }
   }
   // assert(found);  // "No free entities"
-  *found = (Entity){0};
+  *found = (entity_t){0};
   found->is_valid = true;
   return found;
 }
 
-bool ingredients_match(CookingData* data, Recipe* recipe) {
+bool ingredients_match(cooking_data_t* data, recipe_t* recipe) {
   if (data->n_ingredients != recipe->n_ingredients) {
     return false;  // Ingredient count must match
   }
@@ -1732,8 +1746,8 @@ bool ingredients_match(CookingData* data, Recipe* recipe) {
  * Must check the ingredients and define what food is the result
  * of the ingredients and the cooking station used
  */
-FoodID resolve_ingredients(CookingData* data,
-                           Recipe* recipes,
+FoodID resolve_ingredients(cooking_data_t* data,
+                           recipe_t* recipes,
                            int recipe_count) {
   if (!data->is_valid) {
     return FOOD_nil;  // Invalid or not currently cooking
@@ -1741,7 +1755,7 @@ FoodID resolve_ingredients(CookingData* data,
 
   // Loop through all the recipes
   for (int i = 0; i < recipe_count; i++) {
-    Recipe* recipe = &recipes[i];
+    recipe_t* recipe = &recipes[i];
 
     // Check if the cooking station matches
     if (recipe->cooking_station != data->cooking_on->arch) {
@@ -1757,9 +1771,9 @@ FoodID resolve_ingredients(CookingData* data,
   return FOOD_nil;  // No matching recipe found
 }
 
-Entity* create_food(Entity* cooking_station, Vector2 position) {
-  Entity* cooked = entity_create();
-  CookingData* cooking_data = get_cooking_data(cooking_station);
+entity_t* create_food(entity_t* cooking_station, Vector2 position) {
+  entity_t* cooked = entity_create();
+  cooking_data_t* cooking_data = get_cooking_data(cooking_station);
   int n_recipes = (sizeof recipes / sizeof recipes[0]);
   FoodID food_id = resolve_ingredients(cooking_data, recipes, n_recipes);
   ArchetypeID arch = arch_from_food_id(food_id);
@@ -1773,11 +1787,11 @@ Entity* create_food(Entity* cooking_station, Vector2 position) {
   cooked->is_food = true;
 
   // clean work station data
-  *cooking_data = (CookingData){0};
+  *cooking_data = (cooking_data_t){0};
 
   return cooked;
 }
-void update_camera(Camera2D* camera, Entity* player, float dt) {
+void update_camera(Camera2D* camera, entity_t* player, float dt) {
   animate_v2_to_target(&camera->target, player->position, dt, 5.0f);
 }
 
@@ -1856,18 +1870,19 @@ void animate_v2_to_target(Vector2* value,
 /* Loads the image from path into memory
  * as a texture and assigns the SpriteID id
  */
-Sprite load_sprite(const char* path, SpriteID id, int frames) {
+sprite_t load_sprite(const char* path, SpriteID id, int frames) {
   Image image = LoadImage(path);
   if (image.data != NULL) {
     Texture2D texture = LoadTextureFromImage(image);
     UnloadImage(image);
-    sprites[id] = (Sprite){.texture = texture,
-                           .id = id,
-                           .frames = frames,
-                           .frameRec = {.x = 0.0f,
-                                        .y = 0.0f,
-                                        .width = (float)texture.width / frames,
-                                        .height = (float)texture.height}};
+    sprites[id] =
+        (sprite_t){.texture = texture,
+                   .id = id,
+                   .frames = frames,
+                   .frameRec = {.x = 0.0f,
+                                .y = 0.0f,
+                                .width = (float)texture.width / frames,
+                                .height = (float)texture.height}};
     return sprites[id];
   }
   return sprites[SPRITE_nil];
@@ -1886,8 +1901,8 @@ void unload_textures() {
 /*
  * Draws the sprite for an entity and specific offset
  */
-void draw_sprite(Entity* entity, Vector2 offset) {
-  Sprite sprite = sprites[entity->sprite_id];
+void draw_sprite(entity_t* entity, Vector2 offset) {
+  sprite_t sprite = sprites[entity->sprite_id];
 
   Rectangle dest = {.x = entity->position.x + offset.x,
                     .y = entity->position.y + offset.y,
@@ -1898,9 +1913,9 @@ void draw_sprite(Entity* entity, Vector2 offset) {
   DrawTexturePro(sprite.texture, sprite.frameRec, dest, v2(0, 0), 0, WHITE);
 }
 
-void update_entity_frame(Entity* entity) {
+void update_entity_frame(entity_t* entity) {
   // update sprite frame
-  Sprite* entity_sprite = &sprites[entity->sprite_id];
+  sprite_t* entity_sprite = &sprites[entity->sprite_id];
   entity->frameCounter++;
 
   if (entity->frameCounter >= (60 / FRAME_SPEED)) {
