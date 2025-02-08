@@ -10,7 +10,7 @@ emcc -o web/game.html src/entry.c \
 	-s USE_GLFW=3 \
 	-s ASYNCIFY \
 	-Wall \
-	--shell-file $HOME/src/raylib/src/minshell.html \
+	--shell-file ./web/minshell.html \
 	-DPLATFORM_WEB \
 	--preload-file assets
 	
