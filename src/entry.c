@@ -1922,8 +1922,9 @@ void update_entity_frame(entity_t* entity) {
     entity->frameCounter = 0;
     entity->currentFrame++;
 
-    if (entity->currentFrame > entity_sprite->frames)
+    if (entity->currentFrame >= entity_sprite->frames) {
       entity->currentFrame = 0;
+    }
 
     Vector2 sprite_size = get_sprite_size(entity->sprite_id);
     entity_sprite->frameRec.x = (float)entity->currentFrame * sprite_size.x;
