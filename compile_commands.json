@@ -15,8 +15,8 @@
       "game",
       "src/entry.c"
     ],
-    "directory": "/home/andres/projects/game",
-    "file": "/home/andres/projects/game/src/entry.c",
-    "output": "/home/andres/projects/game/game"
+    "directory": "/home/andres/projects/getcooked",
+    "file": "/home/andres/projects/getcooked/src/entry.c",
+    "output": "/home/andres/projects/getcooked/game"
   }
 ]

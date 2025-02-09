@@ -929,7 +929,7 @@ void update_draw_frame(void) {
   update_camera(camera, player, dt);
 
   BeginDrawing();
-  ClearBackground((Color){106, 118, 63, 0});
+  ClearBackground((Color){106, 118, 63, 255});
 
   update_player(player);
   world_frame_t world_frame = {0};
